@@ -1,0 +1,19 @@
+# Environment Variables (CRITICAL: Never commit secrets)
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg
+.venv/
+venv/
+
+# Node.js (For future React frontend)
+node_modules/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Local Data (Keep raw JSONL files local)
+data/raw/*.jsonl
