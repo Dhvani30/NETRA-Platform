@@ -1,0 +1,90 @@
+services:
+  neo4j:
+    image: neo4j:5.11
+    container_name: intel_neo4j
+    restart: always
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: neo4j/password123
+    volumes:
+      - D:/docker_data/neo4j_data:/data
+    networks:
+      - intel_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: intel_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - D:/docker_data/redis_data:/data
+    networks:
+      - intel_network
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: intel_redis_gui
+    restart: always
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8082:8081"
+    depends_on:
+      - redis
+    networks:
+      - intel_network
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    container_name: intel_n8n 
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+    volumes:
+      - D:/docker_data/n8n_data:/home/node/.n8n
+    networks:
+      - intel_network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: intel_zookeeper
+    restart: always
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - D:/docker_data/zookeeper_data:/var/lib/zookeeper/data
+    networks:
+      - intel_network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: intel_kafka
+    restart: always
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    volumes:
+      - D:/docker_data/kafka_data:/var/lib/kafka/data
+    networks:
+      - intel_network
+
+networks:
+  intel_network:
+    driver: bridge
