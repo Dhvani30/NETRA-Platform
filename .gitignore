@@ -1,19 +1,59 @@
-# Environment Variables (CRITICAL: Never commit secrets)
+# ================================
+# Environment Variables / Secrets
+# ================================
 .env
+.env.*
+!.env.example
 
+# ================================
 # Python
+# ================================
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
 *.egg
+*.egg-info/
 .venv/
 venv/
+env/
 
-# Node.js (For future React frontend)
+# ================================
+# Node.js
+# ================================
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
 
-# OS junk
+# ================================
+# Build / Cache
+# ================================
+dist/
+build/
+.vite/
+.next/
+.cache/
+
+# ================================
+# Local Data
+# ================================
+data/raw/*.jsonl
+data/raw/
+!data/raw/.gitkeep
+
+# ================================
+# IDE
+# ================================
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+.idea/
+
+# ================================
+# OS
+# ================================
 .DS_Store
 Thumbs.db
-
-# Local Data (Keep raw JSONL files local)
-data/raw/*.jsonl
