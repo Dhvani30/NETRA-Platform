@@ -162,9 +162,9 @@ export default function InvestigationView({ investigationData, graphData, onBack
             </div>
 
             {/* Memorandum Box */}
-            <div className="p-3.5 rounded bg-[#171918] border-l-2 border-[#91A891] mb-5">
-              <p className="text-xs text-[#E5E6DF]/90 leading-relaxed font-normal">
-                {investigationData.provenance}
+            <div className="p-4 rounded bg-[#171918] border-l-2 border-[#91A891] mb-5">
+              <p className="font-serif text-[13.5px] leading-relaxed text-[#E5E6DF]/95 italic tracking-normal">
+                &ldquo;{investigationData.provenance}&rdquo;
               </p>
             </div>
 

@@ -6,15 +6,23 @@
   body {
     background-color: #171918;
     color: #E5E6DF;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    letter-spacing: -0.011em;
+    letter-spacing: -0.015em;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'tnum';
   }
 
   ::selection {
-    background-color: rgba(145, 168, 145, 0.3);
+    background-color: rgba(145, 168, 145, 0.25);
     color: #E5E6DF;
+  }
+
+  /* Monospace precision settings for numeric metrics */
+  code, kbd, samp, pre, .font-mono {
+    font-family: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
+    font-feature-settings: 'tnum', 'zero';
+    letter-spacing: -0.02em;
   }
 }
 

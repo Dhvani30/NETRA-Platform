@@ -231,7 +231,7 @@ export default function NetworkGraph({ graphData, searchQuery = null, highlightQ
                 // In-canvas Label
                 if (showLabel && label && !isHovered) {
                   const fontSize = Math.max(9, Math.min(12, 11 / globalScale));
-                  ctx.font = `${fontSize}px Inter, sans-serif`;
+                  ctx.font = `${fontSize}px Geist, Inter, sans-serif`;
                   ctx.fillStyle = '#E5E6DF';
                   ctx.textAlign = 'center';
                   ctx.textBaseline = 'middle';
