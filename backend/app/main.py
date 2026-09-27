@@ -15,13 +15,20 @@ from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.errors import PyMongoError
 
+from pathlib import Path
+from dotenv import load_dotenv
+
 # --- Configuration ---
-MONGO_URI = "mongodb://admin:password123@localhost:27017/?authSource=admin"
-MONGO_DB_NAME = "social_intel"
-MONGO_COLLECTION = "raw_posts"
-NEO4J_URI = "bolt://localhost:7687"
-NEO4J_USER = "neo4j"
-NEO4J_PASSWORD = "password123"
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+load_dotenv(dotenv_path=BASE_DIR / ".env")
+load_dotenv()
+
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
+MONGO_DB_NAME = os.getenv("DB_NAME", "NETRA")
+MONGO_COLLECTION = os.getenv("COLLECTION_NAME", "raw_posts")
+NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password123")
 
 mongo_client: MongoClient = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5_000)
 raw_posts: Collection = mongo_client[MONGO_DB_NAME][MONGO_COLLECTION]

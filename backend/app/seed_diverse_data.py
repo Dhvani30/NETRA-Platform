@@ -2,14 +2,24 @@
 Injects 100+ UNIQUE, diverse intelligence posts into MongoDB.
 No duplicates. Varied content, entities, narratives, platforms, and timestamps.
 """
+import os
+from pathlib import Path
+from dotenv import load_dotenv
 from pymongo import MongoClient
 from datetime import datetime, timezone, timedelta
 import random
 
-MONGO_URI = "mongodb://admin:password123@localhost:27017/?authSource=admin"
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+load_dotenv(dotenv_path=BASE_DIR / ".env")
+load_dotenv()
+
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
+DB_NAME = os.getenv("DB_NAME", "NETRA")
+COLLECTION_NAME = os.getenv("COLLECTION_NAME", "raw_posts")
+
 client = MongoClient(MONGO_URI)
-db = client["social_intel"]
-collection = db["raw_posts"]
+db = client[DB_NAME]
+collection = db[COLLECTION_NAME]
 
 # Clear existing data
 collection.delete_many({})

@@ -3,13 +3,25 @@ import os
 import sys
 import subprocess
 import time
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 from datetime import datetime, timezone
 from pymongo import MongoClient
 
+from pathlib import Path
+from dotenv import load_dotenv
+
 # --- Configuration ---
-MONGO_URI = "mongodb://admin:password123@localhost:27017/?authSource=admin"
-DB_NAME = "social_intel"
-COLLECTION_NAME = "raw_posts"
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+load_dotenv(dotenv_path=BASE_DIR / ".env")
+load_dotenv()
+
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
+DB_NAME = os.getenv("DB_NAME", "NETRA")
+COLLECTION_NAME = os.getenv("COLLECTION_NAME", "raw_posts")
 
 def run_command(script_name):
     print(f"\n[⚙️] Running {script_name}...")
@@ -77,13 +89,19 @@ def main():
     
     # 4. Start Backend
     print("[] Starting FastAPI Backend on port 8000...")
-    subprocess.Popen(["python", "-m", "uvicorn", "main:app", "--reload", "--port", "8000"], cwd="..")
+    app_dir = Path(__file__).resolve().parent
+    subprocess.Popen([sys.executable, "-m", "uvicorn", "main:app", "--reload", "--port", "8000"], cwd=str(app_dir))
     
     time.sleep(2) # Wait for backend to initialize
     
     # 5. Start Frontend
     print("[] Starting React Frontend on port 5173...")
-    subprocess.Popen("npm run dev", cwd="../../frontend", shell=True)
+    frontend_dir = BASE_DIR / "frontend"
+    subprocess.Popen("npm run dev", cwd=str(frontend_dir), shell=True)
+    
+    time.sleep(3)
+    import webbrowser
+    webbrowser.open("http://localhost:5173")
     
     print("\n✅ NETRA is fully live! Open http://localhost:5173")
     input("Press Enter to stop all services...")

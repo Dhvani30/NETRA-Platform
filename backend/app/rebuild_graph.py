@@ -1,13 +1,28 @@
+import os
+from pathlib import Path
+from dotenv import load_dotenv
 from neo4j import GraphDatabase
 from pymongo import MongoClient
 from datetime import datetime
 
-# Connect to databases
-mongo_client = MongoClient("mongodb://admin:password123@localhost:27017/?authSource=admin")
-mongo_db = mongo_client["social_intel"]
-posts = mongo_db["raw_posts"]
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+load_dotenv(dotenv_path=BASE_DIR / ".env")
+load_dotenv()
 
-neo4j_driver = GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "password123"))
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
+DB_NAME = os.getenv("DB_NAME", "NETRA")
+COLLECTION_NAME = os.getenv("COLLECTION_NAME", "raw_posts")
+
+NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password123")
+
+# Connect to databases
+mongo_client = MongoClient(MONGO_URI)
+mongo_db = mongo_client[DB_NAME]
+posts = mongo_db[COLLECTION_NAME]
+
+neo4j_driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
 
 def rebuild_graph():
     with neo4j_driver.session() as session:
