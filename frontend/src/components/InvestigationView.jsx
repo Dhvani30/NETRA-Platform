@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Globe, MessageSquare, Share2, TrendingUp, Activity } from 'lucide-react';
+import { ArrowLeft, Globe, MessageSquare, Share2, TrendingUp, Activity, ShieldAlert, FileText, CornerDownRight } from 'lucide-react';
 import NetworkGraph from './NetworkGraph';
 
 export default function InvestigationView({ investigationData, graphData, onBack, searchQuery }) {
@@ -52,13 +52,13 @@ export default function InvestigationView({ investigationData, graphData, onBack
 
   const getPlatformIcon = (platform) => {
     const platformLower = platform?.toLowerCase() || '';
-    if (platformLower.includes('twitter') || platformLower.includes('x')) return <Share2 className="w-4 h-4" />;
-    if (platformLower.includes('reddit')) return <MessageSquare className="w-4 h-4" />;
-    return <Globe className="w-4 h-4" />;
+    if (platformLower.includes('twitter') || platformLower.includes('x')) return <Share2 className="w-3.5 h-3.5 text-[#9B9F96]" />;
+    if (platformLower.includes('reddit')) return <MessageSquare className="w-3.5 h-3.5 text-[#9B9F96]" />;
+    return <Globe className="w-3.5 h-3.5 text-[#9B9F96]" />;
   };
 
   const getRelativeTime = (timestamp) => {
-    if (!timestamp) return 'Unknown time';
+    if (!timestamp) return 'Recent';
     const date = new Date(timestamp);
     const now = new Date();
     const diffMs = now - date;
@@ -73,139 +73,212 @@ export default function InvestigationView({ investigationData, graphData, onBack
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Top Bar */}
-      <div className="flex justify-between items-center p-4 rounded-lg border border-gray-800" style={{ backgroundColor: '#13131f' }}>
-        <div className="flex items-center gap-4">
+    <div className="space-y-6">
+      {/* Editorial Dossier Header */}
+      <div className="bg-[#1E211F] border border-[#343934] rounded p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
           <button 
             onClick={onBack}
-            className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 flex items-center gap-2 transition-colors text-sm font-medium"
+            className="px-3 py-1.5 rounded bg-[#252925] hover:bg-[#343934] border border-[#343934] hover:border-[#424842] text-xs font-medium text-[#9B9F96] hover:text-[#E5E6DF] transition-colors flex items-center gap-1.5"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Return to Overview</span>
           </button>
-          <h1 className="text-2xl font-bold tracking-wider" style={{ color: '#00f0ff' }}>
-            INVESTIGATION: {searchQuery.toUpperCase()}
-          </h1>
+          
+          <span className="h-4 w-px bg-[#343934] hidden sm:inline-block" />
+
+          <div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-[#91A891]">
+                INVESTIGATION DOSSIER
+              </span>
+              <span className="text-sm font-semibold tracking-tight text-[#E5E6DF]">
+                &ldquo;{searchQuery}&rdquo;
+              </span>
+            </div>
+            <p className="text-[11px] text-[#9B9F96]">
+              Analytical intelligence breakdown and corroborating observational records
+            </p>
+          </div>
+        </div>
+
+        <div className="text-right text-[11px] font-mono text-[#686D65] hidden sm:block">
+          STATUS // CLASSIFIED MEMO
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="p-4 rounded-lg border border-gray-800" style={{ backgroundColor: '#13131f' }}>
-          <div className="flex items-center gap-2 mb-2">
-            <Activity className="w-5 h-5" style={{ color: '#00f0ff' }} />
-            <span className="text-sm text-gray-400 font-medium">Observations</span>
+      {/* Metrics Strip */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-[#343934] border border-[#343934] rounded overflow-hidden">
+        <div className="bg-[#1E211F] p-4">
+          <div className="text-[11px] font-mono uppercase tracking-wider text-[#9B9F96] mb-1">
+            Matched Observations
           </div>
-          <div className="text-3xl font-bold text-white">{investigationData.summary?.observations || 0}</div>
+          <div className="text-xl font-semibold font-mono text-[#E5E6DF]">
+            {investigationData.summary?.observations || 0}
+          </div>
         </div>
-        
-        <div className="p-4 rounded-lg border border-gray-800" style={{ backgroundColor: '#13131f' }}>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xl">🏢</span>
-            <span className="text-sm text-gray-400 font-medium">Unique Entities</span>
+
+        <div className="bg-[#1E211F] p-4">
+          <div className="text-[11px] font-mono uppercase tracking-wider text-[#9B9F96] mb-1">
+            Detected Entities
           </div>
-          <div className="text-3xl font-bold text-white">{investigationData.summary?.entities?.length || 0}</div>
+          <div className="text-xl font-semibold font-mono text-[#E5E6DF]">
+            {investigationData.summary?.entities?.length || 0}
+          </div>
         </div>
-        
-        <div className="p-4 rounded-lg border border-gray-800" style={{ backgroundColor: '#13131f' }}>
-          <div className="flex items-center gap-2 mb-2">
-            <Globe className="w-5 h-5" style={{ color: '#3b82f6' }} />
-            <span className="text-sm text-gray-400 font-medium">Platforms</span>
+
+        <div className="bg-[#1E211F] p-4">
+          <div className="text-[11px] font-mono uppercase tracking-wider text-[#9B9F96] mb-1">
+            Monitored Platforms
           </div>
-          <div className="text-3xl font-bold text-white">{investigationData.summary?.platforms?.length || 0}</div>
+          <div className="text-xl font-semibold font-mono text-[#E5E6DF]">
+            {investigationData.summary?.platforms?.length || 0}
+          </div>
         </div>
-        
-        <div className="p-4 rounded-lg border border-gray-800" style={{ backgroundColor: '#13131f' }}>
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-5 h-5" style={{ color: '#10b981' }} />
-            <span className="text-sm text-gray-400 font-medium">Activity Trend</span>
+
+        <div className="bg-[#1E211F] p-4">
+          <div className="text-[11px] font-mono uppercase tracking-wider text-[#9B9F96] mb-1">
+            Signal Velocity
           </div>
-          <div className="text-3xl font-bold" style={{ color: '#10b981' }}>
+          <div className="text-xl font-semibold font-mono text-[#91A891]">
             {investigationData.summary?.activity_trend || '0%'}
           </div>
         </div>
       </div>
 
-      {/* Provenance Panel and Evidence Feed */}
-      <div className="grid grid-cols-2 gap-6">
-        {/* Provenance Panel */}
-        <div className="p-6 rounded-lg border border-gray-800" style={{ backgroundColor: '#13131f' }}>
-          <h2 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: '#00f0ff' }}>
-            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-            WHY THIS NARRATIVE?
-          </h2>
-          <div className="p-4 rounded mb-4" style={{ backgroundColor: '#0a0a0f', borderLeft: '4px solid #00f0ff' }}>
-            <p className="text-gray-300 text-sm leading-relaxed">{investigationData.provenance}</p>
-          </div>
-          
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Key Entities</h3>
-              <div className="flex flex-wrap gap-2">
-                {investigationData.summary?.entities?.slice(0, 8).map((entity, index) => (
-                  <span key={index} className="px-3 py-1 rounded-full text-xs font-medium border" style={{ backgroundColor: 'rgba(168, 85, 247, 0.1)', color: '#a855f7', borderColor: 'rgba(168, 85, 247, 0.3)' }}>
-                    {entity}
-                  </span>
-                ))}
+      {/* Provenance Memorandum & Corroborating Feed */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Analytical Provenance (5 cols) */}
+        <div className="lg:col-span-5 space-y-6">
+          <section className="bg-[#1E211F] border border-[#343934] rounded p-5">
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#343934]">
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#91A891]" />
+                <h2 className="text-sm font-semibold tracking-tight text-[#E5E6DF]">
+                  Analytical Provenance & Rationale
+                </h2>
+              </div>
+              <span className="text-[10px] font-mono text-[#686D65]">SYNTHESIS</span>
+            </div>
+
+            {/* Memorandum Box */}
+            <div className="p-3.5 rounded bg-[#171918] border-l-2 border-[#91A891] mb-5">
+              <p className="text-xs text-[#E5E6DF]/90 leading-relaxed font-normal">
+                {investigationData.provenance}
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-[11px] font-mono uppercase tracking-wider text-[#9B9F96] mb-2">
+                  Associated Entities & Actors
+                </h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {investigationData.summary?.entities?.length ? (
+                    investigationData.summary.entities.slice(0, 10).map((entity, index) => (
+                      <span
+                        key={index}
+                        className="px-2.5 py-1 rounded text-xs font-mono bg-[#252925] text-[#E5E6DF] border border-[#343934]"
+                      >
+                        {entity}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-[#686D65]">No named entities extracted.</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-[#343934]">
+                <h3 className="text-[11px] font-mono uppercase tracking-wider text-[#9B9F96] mb-2">
+                  Distribution Vectors
+                </h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {investigationData.summary?.platforms?.map((platform, index) => (
+                    <span
+                      key={index}
+                      className="px-2.5 py-1 rounded text-xs font-mono bg-[#252925] text-[#9B9F96] border border-[#343934] flex items-center gap-1.5"
+                    >
+                      {getPlatformIcon(platform)}
+                      <span>{platform.toUpperCase()}</span>
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
-            
-            <div>
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Platforms Involved</h3>
-              <div className="flex flex-wrap gap-2">
-                {investigationData.summary?.platforms?.map((platform, index) => (
-                  <span key={index} className="px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 bg-gray-800 text-gray-300 border border-gray-700">
-                    {getPlatformIcon(platform)}
-                    {platform.toUpperCase()}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
+          </section>
         </div>
 
-        {/* Evidence Feed */}
-        <div className="p-6 rounded-lg border border-gray-800" style={{ backgroundColor: '#13131f' }}>
-          <h2 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: '#00f0ff' }}>
-            <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
-            EVIDENCE FEED
-          </h2>
-          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-            {investigationData.posts?.length === 0 ? (
-              <p className="text-gray-400 text-center py-8 text-sm">No direct evidence found for this query.</p>
-            ) : (
-              investigationData.posts?.map((post, index) => (
-                <div key={index} className="p-3 rounded border-l-4 hover:bg-gray-800/50 transition-colors" style={{ backgroundColor: '#0a0a0f', borderColor: '#00f0ff' }}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2 text-xs text-gray-400">
-                      {getPlatformIcon(post.platform)}
-                      <span className="font-bold text-gray-300">{post.platform?.toUpperCase() || 'UNKNOWN'}</span>
-                      <span>•</span>
-                      <span>{getRelativeTime(post.published_at)}</span>
-                    </div>
-                    {post.sentiment_label && (
-                      <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${
-                        post.sentiment_label === 'NEGATIVE' ? 'bg-red-900/50 text-red-400 border border-red-800' : 
-                        post.sentiment_label === 'POSITIVE' ? 'bg-green-900/50 text-green-400 border border-green-800' : 
-                        'bg-gray-700 text-gray-300 border border-gray-600'
-                      }`}>
-                        {post.sentiment_label}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-gray-200 text-sm leading-relaxed">
-                    {(post.text_content || post.content || 'No content').substring(0, 200)}
-                  </p>
+        {/* Evidence Feed (7 cols) */}
+        <div className="lg:col-span-7">
+          <section className="bg-[#1E211F] border border-[#343934] rounded flex flex-col h-[520px]">
+            <div className="p-4 border-b border-[#343934] flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#B6A98A]" />
+                  <h2 className="text-sm font-semibold tracking-tight text-[#E5E6DF]">
+                    Corroborating Observational Evidence
+                  </h2>
                 </div>
-              ))
-            )}
-          </div>
+                <p className="text-[11px] text-[#9B9F96] mt-0.5">
+                  Direct signals captured across active channels
+                </p>
+              </div>
+              <span className="text-xs font-mono text-[#9B9F96]">
+                {investigationData.posts?.length || 0} signals
+              </span>
+            </div>
+
+            <div className="flex-1 overflow-y-auto divide-y divide-[#343934]/60 p-2">
+              {!investigationData.posts || investigationData.posts.length === 0 ? (
+                <div className="py-24 text-center text-xs text-[#9B9F96]">
+                  No corroborating signals recorded for this search filter.
+                </div>
+              ) : (
+                investigationData.posts.map((post, index) => {
+                  const isNeg = post.sentiment_label === 'NEGATIVE';
+                  const isPos = post.sentiment_label === 'POSITIVE';
+                  const sentimentStyle = isNeg
+                    ? 'text-[#C0615A] bg-[#C0615A]/10 border-[#C0615A]/20'
+                    : isPos
+                    ? 'text-[#91A891] bg-[#91A891]/10 border-[#91A891]/20'
+                    : 'text-[#B6A98A] bg-[#B6A98A]/10 border-[#B6A98A]/20';
+
+                  return (
+                    <article key={index} className="p-3.5 hover:bg-[#252925] transition-colors rounded-sm">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-1.5 text-[11px] text-[#9B9F96] font-mono">
+                          {getPlatformIcon(post.platform)}
+                          <span className="text-[#E5E6DF] font-medium">
+                            {post.author_username || post.platform?.toUpperCase() || 'ANON'}
+                          </span>
+                          <span>•</span>
+                          <span>{getRelativeTime(post.published_at)}</span>
+                        </div>
+
+                        {post.sentiment_label && (
+                          <span className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded border ${sentimentStyle}`}>
+                            {post.sentiment_label}
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-[#E5E6DF]/90 leading-relaxed font-normal">
+                        {post.text_content || post.content || 'No text content available.'}
+                      </p>
+                    </article>
+                  );
+                })
+              )}
+            </div>
+          </section>
         </div>
       </div>
 
-      {/* Interactive Graph (Using the unified NetworkGraph component) */}
-      <NetworkGraph graphData={filteredGraph} highlightQuery={searchQuery} />
+      {/* Localized Subgraph Focus */}
+      <section className="pt-2">
+        <NetworkGraph graphData={filteredGraph} highlightQuery={searchQuery} />
+      </section>
     </div>
   );
-}
+}

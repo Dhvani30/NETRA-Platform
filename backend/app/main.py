@@ -3,6 +3,7 @@ NETRA Intelligence Platform API (NTRO SIH 2026).
 Run: python -m uvicorn main:app --reload
 """
 from __future__ import annotations
+import os
 import json
 import re
 from typing import Any

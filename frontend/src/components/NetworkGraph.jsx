@@ -1,21 +1,22 @@
 import { useState, useRef, useEffect } from 'react';
-import { ZoomIn, ZoomOut, RotateCcw, Building } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Share2, Layers, Info, X } from 'lucide-react';
 import ForceGraph2D from 'react-force-graph-2d';
 
+// Restrained Editorial Color Mapping
 const NODE_COLORS = {
-  Platform: '#3b82f6',
-  Post: '#64748b',
-  Narrative: '#ec4899',
-  Organization: '#a855f7',
-  Location: '#eab308'
+  Organization: '#B6A98A', // Warm muted highlight
+  Narrative: '#91A891',    // Muted sage accent
+  Platform: '#747D74',     // Subdued slate grey
+  Location: '#A89874',     // Muted ochre
+  Post: '#4A504A'          // Graphite dark grey
 };
 
 const NODE_SIZES = {
-  Platform: 10,
-  Post: 5,
-  Narrative: 12,
-  Organization: 11,
-  Location: 9
+  Platform: 8,
+  Post: 4,
+  Narrative: 9,
+  Organization: 8,
+  Location: 7
 };
 
 export default function NetworkGraph({ graphData, searchQuery = null, highlightQuery = null }) {
@@ -23,11 +24,15 @@ export default function NetworkGraph({ graphData, searchQuery = null, highlightQ
   const [zoom, setZoom] = useState(1);
   const [selectedNode, setSelectedNode] = useState(null);
   const [hoveredNode, setHoveredNode] = useState(null);
-  const [dimensions, setDimensions] = useState({ width: 800, height: 500 });
+  const [dimensions, setDimensions] = useState({ width: 800, height: 560 });
 
   useEffect(() => {
     const updateDimensions = () => {
-      setDimensions({ width: window.innerWidth - 100, height: 500 });
+      const parentWidth = window.innerWidth > 1600 ? 1520 : window.innerWidth - 80;
+      setDimensions({
+        width: Math.max(320, parentWidth),
+        height: 560
+      });
     };
     updateDimensions();
     window.addEventListener('resize', updateDimensions);
@@ -39,45 +44,46 @@ export default function NetworkGraph({ graphData, searchQuery = null, highlightQ
     if (fgRef.current) {
       const distance = 40;
       const distRatio = 1 + distance / Math.hypot(node.x, node.y);
-      fgRef.current.zoom({ x: node.x, y: node.y, k: distRatio * 2 }, 1000);
+      fgRef.current.zoom({ x: node.x, y: node.y, k: distRatio * 1.5 }, 800);
     }
   };
 
   const handleZoomIn = () => {
     if (fgRef.current) {
-      const z = zoom * 1.3;
-      fgRef.current.zoom(z, 500);
+      const z = zoom * 1.25;
+      fgRef.current.zoom(z, 400);
       setZoom(z);
     }
   };
 
   const handleZoomOut = () => {
     if (fgRef.current) {
-      const z = zoom / 1.3;
-      fgRef.current.zoom(z, 500);
+      const z = zoom / 1.25;
+      fgRef.current.zoom(z, 400);
       setZoom(z);
     }
   };
 
   const handleResetZoom = () => {
     if (fgRef.current) {
-      fgRef.current.zoom(1, 500);
+      fgRef.current.zoom(1, 400);
       setZoom(1);
+      setSelectedNode(null);
     }
   };
 
   const getNodeColor = (node) => {
     if (highlightQuery) {
       const q = highlightQuery.toLowerCase();
-      if ((node.label || '').toLowerCase().includes(q)) return '#00f0ff';
+      if ((node.label || '').toLowerCase().includes(q)) return '#91A891';
     }
-    return NODE_COLORS[node.group] || '#888888';
+    return NODE_COLORS[node.group] || '#5A605A';
   };
 
   const getNodeSize = (node) => {
     if (highlightQuery) {
       const q = highlightQuery.toLowerCase();
-      if ((node.label || '').toLowerCase().includes(q)) return (NODE_SIZES[node.group] || 5) * 2.5;
+      if ((node.label || '').toLowerCase().includes(q)) return (NODE_SIZES[node.group] || 5) * 1.8;
     }
     return NODE_SIZES[node.group] || 5;
   };
@@ -87,46 +93,95 @@ export default function NetworkGraph({ graphData, searchQuery = null, highlightQ
       const q = highlightQuery.toLowerCase();
       return (node.label || '').toLowerCase().includes(q);
     }
-    // Show label if zoomed in more than 1.5x OR if hovered
-    return globalScale > 1.5 || node.id === hoveredNode?.id;
+    return globalScale > 1.8 || node.id === hoveredNode?.id;
   };
 
   return (
-    <div className="p-6 rounded-lg border border-gray-800" style={{ backgroundColor: '#13131f' }}>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: '#00f0ff' }}>
-          <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
-          ENTITY RELATIONSHIP NETWORK ({graphData?.nodes?.length || 0} nodes)
-        </h2>
-        <div className="flex items-center gap-2">
-          <button onClick={handleZoomIn} className="p-2 rounded bg-gray-700 hover:bg-gray-600 transition-colors" title="Zoom In">
-            <ZoomIn className="w-4 h-4 text-white" />
+    <div className="bg-[#1E211F] border border-[#343934] rounded p-5">
+      {/* Graph Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-[#343934]">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#91A891]" />
+            <h2 className="text-sm font-semibold tracking-tight text-[#E5E6DF]">
+              Entity Relationship Topology
+            </h2>
+            <span className="text-[11px] font-mono text-[#9B9F96]">
+              ({graphData?.nodes?.length || 0} entities, {graphData?.links?.length || 0} edges)
+            </span>
+          </div>
+          <p className="text-xs text-[#9B9F96] mt-0.5">
+            Cross-platform relational graph synthesized from ingested intelligence
+          </p>
+        </div>
+
+        {/* View Controls */}
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={handleZoomIn}
+            className="p-1.5 rounded bg-[#252925] hover:bg-[#343934] border border-[#343934] text-[#9B9F96] hover:text-[#E5E6DF] transition-colors"
+            title="Zoom In"
+          >
+            <ZoomIn className="w-3.5 h-3.5" />
           </button>
-          <button onClick={handleZoomOut} className="p-2 rounded bg-gray-700 hover:bg-gray-600 transition-colors" title="Zoom Out">
-            <ZoomOut className="w-4 h-4 text-white" />
+          <button
+            onClick={handleZoomOut}
+            className="p-1.5 rounded bg-[#252925] hover:bg-[#343934] border border-[#343934] text-[#9B9F96] hover:text-[#E5E6DF] transition-colors"
+            title="Zoom Out"
+          >
+            <ZoomOut className="w-3.5 h-3.5" />
           </button>
-          <button onClick={handleResetZoom} className="p-2 rounded bg-gray-700 hover:bg-gray-600 transition-colors" title="Reset View">
-            <RotateCcw className="w-4 h-4 text-white" />
+          <button
+            onClick={handleResetZoom}
+            className="px-2 py-1 rounded bg-[#252925] hover:bg-[#343934] border border-[#343934] text-[#9B9F96] hover:text-[#E5E6DF] transition-colors text-xs flex items-center gap-1"
+            title="Reset View"
+          >
+            <RotateCcw className="w-3 h-3" />
+            <span className="text-[11px]">Reset</span>
           </button>
         </div>
       </div>
 
-      <div className="flex gap-4 text-xs text-gray-400 mb-4 pb-3 border-b border-gray-800">
-        {highlightQuery && <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full" style={{backgroundColor: '#00f0ff'}}></span> Search Match</span>}
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full" style={{backgroundColor: '#a855f7'}}></span> Organization</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full" style={{backgroundColor: '#ec4899'}}></span> Narrative</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full" style={{backgroundColor: '#3b82f6'}}></span> Platform</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full" style={{backgroundColor: '#eab308'}}></span> Location</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full" style={{backgroundColor: '#64748b'}}></span> Post</span>
+      {/* Editorial Legend */}
+      <div className="flex flex-wrap items-center gap-4 text-[11px] text-[#9B9F96] font-mono mb-4 pb-3 border-b border-[#343934]/60">
+        <span className="text-[#686D65] uppercase tracking-wider text-[10px]">LEGEND:</span>
+        {highlightQuery && (
+          <span className="flex items-center gap-1.5 text-[#E5E6DF]">
+            <span className="w-2 h-2 rounded-full border border-[#91A891] bg-[#91A891]" />
+            Search Focus
+          </span>
+        )}
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: NODE_COLORS.Organization }} />
+          Organization
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: NODE_COLORS.Narrative }} />
+          Narrative
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: NODE_COLORS.Location }} />
+          Location
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: NODE_COLORS.Platform }} />
+          Platform
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: NODE_COLORS.Post }} />
+          Post Signal
+        </span>
       </div>
 
-      {/* Graph Container */}
-      <div className="rounded-lg overflow-hidden border border-gray-800 relative" style={{ height: '500px', backgroundColor: '#0a0a0f' }}>
+      {/* Graph Canvas Container */}
+      <div className="rounded overflow-hidden border border-[#343934] relative bg-[#171918]" style={{ height: '560px' }}>
         {!graphData || graphData.nodes?.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <Building className="w-12 h-12 mb-2 opacity-50" />
-            <p className="text-sm">No graph data available.</p>
-            <p className="text-xs mt-1">Run graph_builder.py to populate Neo4j.</p>
+          <div className="flex flex-col items-center justify-center h-full text-[#9B9F96]">
+            <Layers className="w-8 h-8 mb-2 text-[#686D65]" />
+            <p className="text-xs font-medium text-[#E5E6DF]">Graph Topology Offline</p>
+            <p className="text-[11px] text-[#686D65] mt-1">
+              Start Docker Neo4j and execute graph_builder.py to compile relational nodes.
+            </p>
           </div>
         ) : (
           <>
@@ -135,16 +190,16 @@ export default function NetworkGraph({ graphData, searchQuery = null, highlightQ
               graphData={graphData}
               width={dimensions.width}
               height={dimensions.height}
-              nodeLabel={node => node.label}
+              nodeLabel={null}
               nodeColor={getNodeColor}
               nodeRelSize={getNodeSize}
-              linkColor={() => '#334155'}
-              linkWidth={1.5}
-              backgroundColor="#0a0a0f"
-              cooldownTicks={200}
-              linkDistance={80}
-              chargeStrength={-400}
-              d3VelocityDecay={0.3}
+              linkColor={() => '#282C28'}
+              linkWidth={1}
+              backgroundColor="#171918"
+              cooldownTicks={180}
+              linkDistance={70}
+              chargeStrength={-300}
+              d3VelocityDecay={0.35}
               onNodeClick={handleNodeClick}
               onNodeHover={(node) => {
                 setHoveredNode(node);
@@ -155,56 +210,85 @@ export default function NetworkGraph({ graphData, searchQuery = null, highlightQ
                 const size = getNodeSize(node);
                 const isHovered = hoveredNode?.id === node.id;
                 const isMatch = highlightQuery && label.toLowerCase().includes(highlightQuery.toLowerCase());
+                const isSelected = selectedNode?.id === node.id;
                 const showLabel = shouldShowLabel(node, globalScale);
 
-                // Draw node circle
+                // Node Base
                 ctx.beginPath();
                 ctx.arc(node.x, node.y, size, 0, 2 * Math.PI);
                 ctx.fillStyle = getNodeColor(node);
                 ctx.fill();
 
-                // Draw glow ring for hovered or matched nodes
-                if (isHovered || isMatch) {
+                // Subtle outline ring for selected or hovered
+                if (isHovered || isMatch || isSelected) {
                   ctx.beginPath();
-                  ctx.arc(node.x, node.y, size + 4, 0, 2 * Math.PI);
-                  ctx.strokeStyle = '#00f0ff';
-                  ctx.lineWidth = 2;
+                  ctx.arc(node.x, node.y, size + 3, 0, 2 * Math.PI);
+                  ctx.strokeStyle = isMatch ? '#91A891' : '#B6A98A';
+                  ctx.lineWidth = 1.5;
                   ctx.stroke();
                 }
 
-                // Draw label in canvas (small, subtle)
+                // In-canvas Label
                 if (showLabel && label && !isHovered) {
-                  const fontSize = Math.max(10, 11 / globalScale);
-                  ctx.font = `${fontSize}px Sans-Serif`;
-                  ctx.fillStyle = '#ffffff';
+                  const fontSize = Math.max(9, Math.min(12, 11 / globalScale));
+                  ctx.font = `${fontSize}px Inter, sans-serif`;
+                  ctx.fillStyle = '#E5E6DF';
                   ctx.textAlign = 'center';
                   ctx.textBaseline = 'middle';
                   ctx.fillText(label, node.x, node.y + size + fontSize);
                 }
               }}
             />
-            
-            {/* 🌟 FLOATING HOVER LABEL - Pops above everything */}
+
+            {/* Hover Tooltip (Editorial Minimalist) */}
             {hoveredNode && (
               <div
-                className="absolute pointer-events-none px-3 py-1.5 rounded-md bg-black/90 border border-cyan-400 text-cyan-400 font-bold text-sm whitespace-nowrap shadow-lg z-50"
+                className="absolute pointer-events-none px-2.5 py-1.5 rounded bg-[#1E211F] border border-[#343934] text-xs shadow-2xl z-30 font-sans"
                 style={{
                   left: `${hoveredNode.x}px`,
-                  top: `${hoveredNode.y - 15}px`,
+                  top: `${hoveredNode.y - 12}px`,
                   transform: 'translate(-50%, -100%)'
                 }}
               >
-                {hoveredNode.label}
-                <span className="ml-2 text-xs text-gray-400 font-normal">({hoveredNode.group})</span>
+                <div className="font-medium text-[#E5E6DF]">{hoveredNode.label}</div>
+                <div className="text-[10px] font-mono text-[#9B9F96]">{hoveredNode.group}</div>
               </div>
             )}
 
-            {/* Selected Node Info Panel */}
+            {/* Selected Node Inspector Panel */}
             {selectedNode && (
-              <div className="absolute top-4 right-4 p-4 rounded-lg border border-gray-700" style={{ backgroundColor: '#13131f', maxWidth: '300px' }}>
-                <h3 className="text-sm font-bold mb-2" style={{ color: '#00f0ff' }}>{selectedNode.label}</h3>
-                <p className="text-xs text-gray-400 mb-2">Type: {selectedNode.group}</p>
-                <p className="text-xs text-gray-500">Click another node to explore</p>
+              <div className="absolute top-4 right-4 p-4 rounded bg-[#1E211F]/95 backdrop-blur-sm border border-[#343934] shadow-2xl max-w-[280px] z-30 text-xs font-sans">
+                <div className="flex items-start justify-between gap-2 mb-2 pb-2 border-b border-[#343934]">
+                  <div>
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-[#9B9F96]">
+                      {selectedNode.group}
+                    </span>
+                    <h3 className="font-semibold text-sm text-[#E5E6DF] mt-0.5">
+                      {selectedNode.label}
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setSelectedNode(null)}
+                    className="text-[#9B9F96] hover:text-[#E5E6DF] p-1"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="space-y-1.5 text-[11px] text-[#9B9F96] font-mono">
+                  <div className="flex justify-between">
+                    <span>Node ID:</span>
+                    <span className="text-[#E5E6DF] truncate max-w-[140px]">{selectedNode.id}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Classification:</span>
+                    <span className="text-[#B6A98A]">{selectedNode.group}</span>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-[#686D65] mt-3 pt-2 border-t border-[#343934]">
+                  Click on canvas or other nodes to re-target inspection.
+                </p>
               </div>
             )}
           </>
@@ -212,4 +296,4 @@ export default function NetworkGraph({ graphData, searchQuery = null, highlightQ
       </div>
     </div>
   );
-}
+}
