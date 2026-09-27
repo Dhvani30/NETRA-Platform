@@ -29,14 +29,17 @@ def init_db():
     client = pymongo.MongoClient(MONGO_URI)
     db = client[DB_NAME]
     collection = db[COLLECTION_NAME]
+    # Ensure we can upsert efficiently without duplicates
     collection.create_index("canonical_id", unique=True)
+    # Index for the AI engine to quickly find unprocessed posts
+    collection.create_index("processed")
     return collection
 
 def generate_high_volume_dataset():
-    """Generates a robust, diverse dataset for AI processing."""
+    """Generates a robust, diverse dataset for AI processing and demo stability."""
     base_time = datetime(2026, 9, 25, 12, 0, 0, tzinfo=timezone.utc)
     
-    # 30 Realistic, Intelligence-Relevant Posts
+    # 30 Realistic, Intelligence-Relevant Posts (SIH Demo Ready)
     templates = [
         ("cybersecurity", "Critical zero-day in Cisco IOS", "Remote code execution vulnerability found in enterprise routers.", "sec_researcher", 450, 89),
         ("cybersecurity", "Ransomware gang targets healthcare", "New strain encrypts MRI machines, demands BTC.", "threat_intel", 890, 150),
@@ -72,7 +75,7 @@ def generate_high_volume_dataset():
 
     data = []
     for i, (sub, title, text, author, score, comments) in enumerate(templates):
-        # Stagger timestamps by 10 minutes to simulate a real timeline
+        # Stagger timestamps by 10 minutes to simulate a real chronological timeline
         post_time = base_time + timedelta(minutes=i*10)
         data.append({
             "platform": "reddit",
@@ -90,7 +93,7 @@ def generate_high_volume_dataset():
 
 def run_replay_ingestor():
     print("[*] Starting NETRA Reddit REPLAY Ingestion Daemon...")
-    print("[!] Note: Using deterministic replay layer due to Reddit API restrictions.")
+    print("[!] Note: Using deterministic replay layer for guaranteed demo stability.")
     
     collection = init_db()
     REPLAY_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -103,21 +106,24 @@ def run_replay_ingestor():
                 f.write(json.dumps(item) + '\n')
         print(f"[+] Replay dataset generated with {len(sample_data)} posts.")
 
-    print("[*] Processing replay dataset into Canonical Schema...")
+    print("[*] Processing replay dataset into Unified Canonical Schema...")
     count = 0
     with open(REPLAY_FILE, 'r', encoding='utf-8') as f:
         for line in f:
-            if not line.strip(): continue
+            if not line.strip(): 
+                continue
             post = json.loads(line)
             
             post_id = post.get('native_id', 'unknown')
-            canonical_id = f"reddit:{post.get('subreddit', 'unknown')}:{post_id}"
+            subreddit = post.get('subreddit', 'unknown')
+            canonical_id = f"reddit:{subreddit}:{post_id}"
             
+            # UNIFIED SCHEMA: Matches n8n X and Telegram outputs exactly
             doc = {
                 "canonical_id": canonical_id,
                 "platform": "reddit",
                 "native_id": post_id,
-                "text_content": f"{post.get('title', '')}\n\n{post.get('selftext', '')[:500]}",
+                "text_content": f"{post.get('title', '')} | {post.get('selftext', '')[:500]}",
                 "author_username": post.get('author', 'deleted'),
                 "published_at": datetime.fromtimestamp(post.get('created_utc', 0), tz=timezone.utc).isoformat(),
                 "ingested_at": datetime.now(timezone.utc).isoformat(),
@@ -127,15 +133,20 @@ def run_replay_ingestor():
                     "comments": post.get('num_comments', 0)
                 },
                 "metadata": {
-                    "subreddit": post.get('subreddit'),
-                    "source_mode": "REPLAY"
-                }
+                    "subreddit": subreddit,
+                    "source_mode": "REPLAY" # Honest Baseline Doctrine
+                },
+                "processed": False # CRITICAL: Flags this document for the Phase 2 AI Engine
             }
 
-            collection.update_one({"canonical_id": canonical_id}, {"$set": doc}, upsert=True)
+            collection.update_one(
+                {"canonical_id": canonical_id}, 
+                {"$set": doc}, 
+                upsert=True
+            )
             count += 1
             
-    print(f"[+] Ingestion cycle complete. {count} posts processed/updated to MongoDB Atlas.")
+    print(f"[+] Ingestion cycle complete. {count} posts processed/updated to MongoDB.")
     print("[*] Reddit pipeline is now ready for AI/Blockchain processing.")
 
 if __name__ == "__main__":
