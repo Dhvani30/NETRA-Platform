@@ -10,7 +10,6 @@ from neo4j import GraphDatabase
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(dotenv_path=BASE_DIR / ".env")
 
-# Hardcoded fallback to ensure it NEVER tries to resolve a broken DNS string
 MONGO_URI = os.getenv("MONGO_URI") or "mongodb://admin:password123@localhost:27017/?authSource=admin"
 DB_NAME = os.getenv("DB_NAME", "social_intel")
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "raw_posts")
@@ -19,12 +18,27 @@ NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password123")
 
-GRAPH_MAX_DOCS = int(os.getenv("GRAPH_MAX_DOCS", "1000"))
+# --- Semantic Narrative Detector ---
+def detect_narrative(text, default_topic):
+    text_lower = text.lower()
+    if any(x in text_lower for x in ["ransomware", "malware", "cyber attack", "data breach", "zero-day", "vulnerability"]):
+        return "Cyber Attack"
+    if any(x in text_lower for x in ["artificial intelligence", "ai regulation", "ai model", "machine learning"]):
+        return "AI Development and Regulation"
+    if any(x in text_lower for x in ["south china sea", "china", "navy", "maritime", "taiwan"]):
+        return "South China Sea Tensions"
+    if any(x in text_lower for x in ["border", "border security", "territorial", "dispute"]):
+        return "Border Security"
+    if any(x in text_lower for x in ["defence", "defense", "military", "nato", "army"]):
+        return "Defence and Security"
+    if any(x in text_lower for x in ["election", "vote", "parliament", "government", "policy"]):
+        return "Political and Governance"
+    return default_topic.replace("_", " ").title()
 
 # --- Expanded Entity Keyword Matcher ---
 ENTITY_KEYWORDS = {
-    "Organization": ["cisco", "nato", "un", "cert-in", "microsoft", "google", "ntro", "parliament", "defense ministry", "iisc", "isro", "sebi", "rbi"],
-    "Location": ["india", "south china sea", "arctic", "bangalore", "bengaluru", "mumbai", "delhi", "japan", "us", "usa", "eu", "border", "rural areas", "china", "pakistan"]
+    "Organization": ["cisco", "nato", "un", "cert-in", "microsoft", "google", "ntro", "parliament", "defense ministry", "iisc", "isro", "sebi", "rbi", "telegram", "twitter", "reddit"],
+    "Location": ["india", "south china sea", "arctic", "bangalore", "bengaluru", "mumbai", "delhi", "japan", "us", "usa", "eu", "border", "rural areas", "china", "pakistan", "taiwan"]
 }
 
 def extract_entities(text):
@@ -33,11 +47,11 @@ def extract_entities(text):
     for entity_type, keywords in ENTITY_KEYWORDS.items():
         for keyword in keywords:
             if re.search(rf'\b{re.escape(keyword)}\b', text_lower):
-                entities[entity_type].add(keyword.title() if keyword.lower() != "us" else "US")
+                entities[entity_type].add(keyword.title() if keyword.lower() not in ["us", "uk", "eu"] else keyword.upper())
     return entities
 
 def build_knowledge_graph():
-    print("[*] Starting NETRA Semantic Knowledge Graph Builder...")
+    print("[*] Starting NETRA Semantic Knowledge Graph Builder (Clean)...")
     
     try:
         mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
@@ -47,15 +61,18 @@ def build_knowledge_graph():
         print(f"[!] CRITICAL: Cannot connect to MongoDB. Error: {e}")
         return
     
-    # --- DIAGNOSTIC 1: Total Documents ---
-    total_count = collection.count_documents({})
-    print(f"[DEBUG] Total MongoDB documents: {total_count}")
+    # --- BALANCED INGESTION ---
+    reddit_docs = list(collection.find({"platform": {"$regex": "^reddit$", "$options": "i"}}).limit(80))
+    x_docs = list(collection.find({"platform": {"$regex": "^x$", "$options": "i"}}).limit(80))
+    telegram_docs = list(collection.find({"platform": {"$regex": "^telegram$", "$options": "i"}}).limit(40))
     
-    # Fetch documents with configurable limit
-    documents = list(collection.find({}).limit(GRAPH_MAX_DOCS))
-    print(f"[DEBUG] Documents fetched (limit {GRAPH_MAX_DOCS}): {len(documents)}")
+    documents = reddit_docs + x_docs + telegram_docs
     
-    # Filter valid documents
+    print(f"[DEBUG] Reddit docs fetched: {len(reddit_docs)}")
+    print(f"[DEBUG] X docs fetched: {len(x_docs)}")
+    print(f"[DEBUG] Telegram docs fetched: {len(telegram_docs)}")
+    print(f"[DEBUG] Total selected: {len(documents)}")
+    
     valid_documents = []
     for doc in documents:
         text = doc.get("text_content") or doc.get("content") or ""
@@ -65,19 +82,8 @@ def build_knowledge_graph():
     print(f"[DEBUG] Valid documents with text: {len(valid_documents)}")
     
     if not valid_documents:
-        print("[-] No valid documents found. Check ingestion pipeline.")
+        print("[-] No valid documents found.")
         return
-
-    # --- DIAGNOSTIC 2: Platform Distribution ---
-    print("\n[DEBUG] Platform distribution:")
-    platform_counts = Counter((doc.get("platform") or "UNKNOWN").upper() for doc in valid_documents)
-    for platform, count in platform_counts.items():
-        print(f"  {platform}: {count}")
-
-    # --- DIAGNOSTIC 3: Missing Canonical IDs ---
-    missing_ids = sum(1 for doc in valid_documents if not doc.get("canonical_id"))
-    print(f"\n[DEBUG] Missing canonical_id: {missing_ids}")
-    print("-" * 50)
 
     try:
         driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
@@ -94,7 +100,6 @@ def build_knowledge_graph():
     print("[*] Building semantic nodes and relationships...")
     with driver.session() as session:
         for doc in valid_documents:
-            # CRITICAL FIX: Never use "unknown" as an ID. Fallback to MongoDB _id.
             canonical_id = doc.get("canonical_id")
             if canonical_id:
                 post_id = canonical_id
@@ -104,28 +109,28 @@ def build_knowledge_graph():
                 post_id = f"{platform_name}_{mongo_id}"
             
             platform = (doc.get("platform") or "UNKNOWN").upper()
-            author = doc.get("author_username") or doc.get("author_id") or "anonymous"
             text = doc.get("text_content") or doc.get("content") or ""
             
-            # Readable Snippet for Post Label
             snippet = text[:60].replace('\n', ' ') + "..." if len(text) > 60 else text
             
-            # Topic & Narrative Logic
-            topic_name = doc.get("metadata", {}).get("subreddit", platform.lower()).title()
-            if platform == "X": topic_name = "Twitter_Trends"
-            elif platform == "TELEGRAM": topic_name = "Telegram_Channel"
+            metadata = doc.get("metadata", {})
+            if metadata.get("subreddit"):
+                topic_name = metadata["subreddit"].title()
+            elif metadata.get("chat_title"):
+                topic_name = metadata["chat_title"].title()
+            else:
+                topic_name = "General_Discussion"
             
-            cluster = doc.get("narrative_cluster", 0)
-            narrative_name = f"Narrative_Cluster_{cluster}" if "narrative_cluster" in doc else f"Narrative_{topic_name}"
+            narrative_name = detect_narrative(text, topic_name)
 
-            # Create Post Node
+            # 1. Post Node
             session.run(
                 "MERGE (p:Post {id: $id}) "
-                "SET p.name = $snippet, p.text = $text, p.author = $author, p.platform = $platform",
-                id=post_id, snippet=snippet, text=text[:300], author=author, platform=platform
+                "SET p.name = $snippet, p.text = $text, p.platform = $platform",
+                id=post_id, snippet=snippet, text=text[:300], platform=platform
             )
             
-            # Create Platform Node & POSTED_ON
+            # 2. Platform Node
             session.run(
                 "MATCH (p:Post {id: $post_id}) "
                 "MERGE (plat:Platform {name: $platform}) "
@@ -133,7 +138,7 @@ def build_knowledge_graph():
                 platform=platform, post_id=post_id
             )
             
-            # Create Topic Node & ABOUT
+            # 3. Topic Node
             session.run(
                 "MATCH (p:Post {id: $post_id}) "
                 "MERGE (t:Topic {name: $name}) "
@@ -141,7 +146,7 @@ def build_knowledge_graph():
                 name=topic_name, post_id=post_id
             )
 
-            # Create Narrative Node & PART_OF
+            # 4. Narrative Node
             session.run(
                 "MATCH (p:Post {id: $post_id}) "
                 "MERGE (n:Narrative {name: $name}) "
@@ -149,7 +154,7 @@ def build_knowledge_graph():
                 name=narrative_name, post_id=post_id
             )
 
-            # Extract Entities & Create MENTIONS / ASSOCIATED_WITH
+            # 5. Entity Nodes
             entities = extract_entities(text)
             for org in entities["Organization"]:
                 session.run(
