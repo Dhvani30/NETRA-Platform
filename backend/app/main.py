@@ -5,6 +5,7 @@ Run: python -m uvicorn main:app --reload
 from __future__ import annotations
 import json
 import re
+from datetime import datetime
 from typing import Any
 from bson import json_util
 from fastapi import FastAPI, HTTPException, Query, status
@@ -94,61 +95,17 @@ def get_sentiment():
         return {"sentiment_breakdown": [{"label": r["_id"] if r["_id"] else "Neutral", "count": r["count"]} for r in results]}
     except PyMongoError: raise HTTPException(status_code=500, detail="DB Error")
 
-@app.get("/api/v1/analytics/narratives", tags=["analytics"])
-def get_narrative_analytics() -> dict[str, Any]:
-    """Count documents by narrative_name or narrative_cluster with meaningful names."""
-    
-    # Map cluster numbers to meaningful narrative names
-    CLUSTER_NAME_MAP = {
-        0: "Cyber Attack",
-        4: "Cyber Attack",
-        7: "AI Development and Regulation",
-        22: "Defence and Security",
-        24: "South China Sea Tensions",
-        27: "Geopolitical Conflict",
-        28: "Startup Ecosystem",
-        29: "Financial Technology",
-        30: "Space & Defence",
-        31: "Neural Interface Technology",
-        32: "AI Security"
-    }
-    
+@app.get("/api/v1/analytics/narratives")
+def get_narratives():
     try:
         pipeline = [
-            {
-                "$group": {
-                    "_id": {
-                        "$ifNull": [
-                            "$narrative_name", 
-                            {"$concat": ["Narrative_", {"$toString": {"$ifNull": ["$narrative_cluster", 0]} }]}
-                        ]
-                    },
-                    "count": {"$sum": 1}
-                }
-            },
-            {"$sort": {"count": -1}},
-            {"$limit": 10}
+            {"$group": {"_id": {"$ifNull": ["$narrative_name", {"$concat": ["Narrative_", {"$toString": {"$ifNull": ["$narrative_cluster", 0]} }]}]}, "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}, {"$limit": 10}
         ]
         results = list(raw_posts.aggregate(pipeline))
-        
-        clusters = []
-        for result in results:
-            raw_name = result["_id"] if result["_id"] else "Uncategorized"
-            # If it's a "Narrative_X" format, try to map it
-            if raw_name.startswith("Narrative_"):
-                try:
-                    cluster_num = int(raw_name.split("_")[1])
-                    display_name = CLUSTER_NAME_MAP.get(cluster_num, raw_name)
-                except:
-                    display_name = raw_name
-            else:
-                display_name = raw_name
-            
-            clusters.append({"name": display_name, "count": result["count"]})
-        
-        return {"clusters": clusters}
-    except PyMongoError as exc:
-        raise HTTPException(status_code=500, detail="Failed to load narratives.") from exc
+        return {"clusters": [{"name": r["_id"] if r["_id"] else "Uncategorized", "count": r["count"]} for r in results]}
+    except PyMongoError: raise HTTPException(status_code=500, detail="DB Error")
+
 @app.get("/api/v1/graph/data")
 def get_graph():
     try: return _fetch_graph_payload()
@@ -180,3 +137,122 @@ def search_messages(q: str = Query(..., min_length=1)):
             "posts": documents
         }
     except PyMongoError: raise HTTPException(status_code=500, detail="Search failed")
+
+@app.get("/api/v1/analytics/mutation")
+def get_narrative_mutation(narrative: str = Query(..., description="Narrative name to track")):
+    try:
+        query = {"narrative_name": {"$regex": narrative, "$options": "i"}}
+        cursor = raw_posts.find(query, {"_id": 0}).sort("published_at", 1)
+        posts = _mongo_documents_to_json(list(cursor))
+        
+        if not posts:
+            return {"error": "No data found for this narrative"}
+
+        total = len(posts)
+        phases = [
+            {"name": "Phase 1: Initial Detection", "slice": posts[:max(1, total//4)]},
+            {"name": "Phase 2: Developing", "slice": posts[max(1, total//4):max(1, total//2)]},
+            {"name": "Phase 3: Acceleration", "slice": posts[max(1, total//2):max(1, (total*3)//4)]},
+            {"name": "Phase 4: Current State", "slice": posts[max(1, (total*3)//4):]}
+        ]
+
+        timeline_data = []
+        mutations = []
+        all_entities_seen = set()
+        
+        for phase in phases:
+            phase_posts = phase["slice"]
+            if not phase_posts: continue
+            
+            volume = len(phase_posts)
+            sentiments = [p.get("sentiment_label", "NEUTRAL") for p in phase_posts]
+            dominant_sentiment = max(set(sentiments), key=sentiments.count) if sentiments else "NEUTRAL"
+            
+            current_entities = set()
+            for p in phase_posts:
+                text = (p.get("text_content") or "").lower()
+                known_entities = ["cisco", "cert-in", "sbi", "hdfc", "ransomware", "malware", "ai", "regulation", "china", "india", "nato"]
+                for ent in known_entities:
+                    if ent in text:
+                        current_entities.add(ent.title())
+            
+            new_mutations = list(current_entities - all_entities_seen)
+            all_entities_seen.update(current_entities)
+            
+            last_time = phase_posts[-1].get("published_at", "Unknown")
+            try:
+                time_obj = datetime.fromisoformat(last_time.replace('Z', '+00:00'))
+                time_str = time_obj.strftime("%b %d, %H:%M")
+            except:
+                time_str = "Recent"
+
+            timeline_data.append({
+                "phase": phase["name"].split(":")[0],
+                "volume": volume,
+                "sentiment": dominant_sentiment,
+                "time": time_str
+            })
+
+            if new_mutations:
+                mutations.append({
+                    "phase": phase["name"],
+                    "time": time_str,
+                    "new_elements": new_mutations,
+                    "sentiment_shift": dominant_sentiment
+                })
+
+        return {
+            "narrative": narrative,
+            "total_observations": total,
+            "timeline": timeline_data,
+            "mutations": mutations
+        }
+
+    except PyMongoError as exc:
+        raise HTTPException(status_code=500, detail="Failed to load mutation data.") from exc
+
+@app.get("/api/v1/analytics/correlation")
+def get_cross_platform_correlation(q: str = Query(..., description="Topic to track across platforms")):
+    try:
+        pattern = re.escape(q.strip())
+        query = {"$or": [
+            {"text_content": {"$regex": pattern, "$options": "i"}}, 
+            {"content": {"$regex": pattern, "$options": "i"}}
+        ]}
+        
+        posts = _mongo_documents_to_json(list(raw_posts.find(query, {"_id": 0}).sort("published_at", 1)))
+        
+        if not posts:
+            return {"query": q, "flow": []}
+
+        platform_stats = {}
+        for p in posts:
+            plat = p.get("platform", "unknown").lower()
+            if plat not in platform_stats:
+                platform_stats[plat] = {
+                    "first_seen": p.get("published_at"),
+                    "count": 0,
+                    "sample_text": (p.get("text_content") or p.get("content") or "")[:100]
+                }
+            platform_stats[plat]["count"] += 1
+
+        flow = []
+        for plat, stats in platform_stats.items():
+            flow.append({
+                "platform": plat.upper(),
+                "first_seen": stats["first_seen"],
+                "post_count": stats["count"],
+                "sample_text": stats["sample_text"] + "..."
+            })
+        
+        flow.sort(key=lambda x: x["first_seen"])
+
+        return {"query": q, "flow": flow, "total_posts": len(posts)}
+
+    except PyMongoError as exc:
+        raise HTTPException(status_code=500, detail="Correlation failed.") from exc
+
+@app.on_event("shutdown")
+def shutdown_event():
+    neo4j_driver.close()
+    mongo_client.close()

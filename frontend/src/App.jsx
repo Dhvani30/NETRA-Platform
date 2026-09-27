@@ -4,6 +4,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis
 import { Search, Globe, MessageSquare, RefreshCw, Share2 } from 'lucide-react';
 import InvestigationView from './components/InvestigationView';
 import NetworkGraph from './components/NetworkGraph';
+import NarrativeTracker from './components/NarrativeTracker';
+import CrossPlatformView from './components/CrossPlatformView';
 
 const API_URL = 'http://localhost:8000/api/v1';
 const SENTIMENT_COLORS = { Positive: '#10b981', Negative: '#ef4444', Neutral: '#f59e0b', ABSTAIN: '#6b7280' };
@@ -33,8 +35,11 @@ function App() {
       setGraphData(graphRes.data || { nodes: [], links: [] });
       setMessages(messagesRes.data.messages || []);
       setLastUpdated(new Date());
-    } catch (error) { console.error('Error fetching data:', error); }
-    finally { setLoading(false); }
+    } catch (error) { 
+      console.error('Error fetching data:', error); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleSearch = async (e) => {
@@ -43,12 +48,18 @@ function App() {
       try {
         const searchRes = await axios.get(`${API_URL}/search?q=${encodeURIComponent(searchQuery)}`);
         setInvestigationData(searchRes.data);
-      } catch (error) { console.error('Error searching:', error); }
-      finally { setLoading(false); }
+      } catch (error) { 
+        console.error('Error searching:', error); 
+      } finally { 
+        setLoading(false); 
+      }
     }
   };
 
-  const handleBackToDashboard = () => { setInvestigationData(null); setSearchQuery(''); };
+  const handleBackToDashboard = () => { 
+    setInvestigationData(null); 
+    setSearchQuery(''); 
+  };
 
   useEffect(() => { fetchData(); }, []);
 
@@ -70,13 +81,24 @@ function App() {
 
   return (
     <div className="min-h-screen p-6 font-sans" style={{ backgroundColor: '#0a0a0f', color: '#ffffff' }}>
+      {/* Header */}
       <header className="mb-8 flex justify-between items-center border-b border-gray-700 pb-4">
         <h1 className="text-3xl font-bold tracking-wider" style={{ color: '#00f0ff' }}>NETRA INTELLIGENCE DASHBOARD</h1>
         {!investigationData && (
           <div className="flex gap-4 items-center">
-            <button onClick={() => setActiveTab('analytics')} className={`px-4 py-2 rounded ${activeTab === 'analytics' ? 'bg-emerald-600' : 'bg-gray-700'}`}>Analytics</button>
-            <button onClick={() => setActiveTab('graph')} className={`px-4 py-2 rounded ${activeTab === 'graph' ? 'bg-emerald-600' : 'bg-gray-700'}`}>Network Graph</button>
-            <button onClick={fetchData} disabled={loading} className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 flex items-center gap-2">
+            <button onClick={() => setActiveTab('analytics')} className={`px-4 py-2 rounded transition-colors ${activeTab === 'analytics' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+              Analytics
+            </button>
+            <button onClick={() => setActiveTab('mutation')} className={`px-4 py-2 rounded transition-colors ${activeTab === 'mutation' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+              Mutation Tracker
+            </button>
+            <button onClick={() => setActiveTab('correlation')} className={`px-4 py-2 rounded transition-colors ${activeTab === 'correlation' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+              Cross-Platform
+            </button>
+            <button onClick={() => setActiveTab('graph')} className={`px-4 py-2 rounded transition-colors ${activeTab === 'graph' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+              Network Graph
+            </button>
+            <button onClick={fetchData} disabled={loading} className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 flex items-center gap-2 text-gray-300 transition-colors">
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
             </button>
             {lastUpdated && <span className="text-sm text-gray-400">Last Updated: {lastUpdated.toLocaleTimeString()}</span>}
@@ -84,15 +106,25 @@ function App() {
         )}
       </header>
 
+      {/* Search Bar */}
       {!investigationData && (
         <div className="mb-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input type="text" placeholder="Investigate topic, entity, or narrative... (press Enter)" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={handleSearch} className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-800 border border-gray-700 text-white placeholder-gray-400 focus:outline-none focus:border-cyan-500" style={{ backgroundColor: '#13131f' }} />
+            <input 
+              type="text" 
+              placeholder="Investigate topic, entity, or narrative... (press Enter)" 
+              value={searchQuery} 
+              onChange={(e) => setSearchQuery(e.target.value)} 
+              onKeyDown={handleSearch} 
+              className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-800 border border-gray-700 text-white placeholder-gray-400 focus:outline-none focus:border-cyan-500 transition-colors" 
+              style={{ backgroundColor: '#13131f' }} 
+            />
           </div>
         </div>
       )}
 
+      {/* Main Content Area */}
       {investigationData ? (
         <InvestigationView investigationData={investigationData} graphData={graphData} onBack={handleBackToDashboard} searchQuery={searchQuery} />
       ) : (
@@ -138,6 +170,15 @@ function App() {
               </div>
             </div>
           )}
+          
+          {activeTab === 'mutation' && (
+            <NarrativeTracker />
+          )}
+
+          {activeTab === 'correlation' && (
+            <CrossPlatformView />
+          )}
+          
           {activeTab === 'graph' && (
             <NetworkGraph graphData={graphData} />
           )}
@@ -146,4 +187,5 @@ function App() {
     </div>
   );
 }
+
 export default App;
