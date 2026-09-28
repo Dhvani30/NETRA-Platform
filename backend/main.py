@@ -266,7 +266,6 @@ def get_alerts():
         total_count = len(all_posts)
         now = datetime.now(timezone.utc)
 
-        # 1. DYNAMIC ALERT: High Data Volume
         if total_count > 5:
             alerts.append({
                 "id": "alert_vol_01",
@@ -277,7 +276,6 @@ def get_alerts():
                 "timestamp": now.isoformat()
             })
 
-        # 2. DYNAMIC ALERT: Real Sentiment Calculation
         sentiments = [p.get("sentiment_label") for p in all_posts if p.get("sentiment_label")]
         if sentiments:
             neg_count = sentiments.count("NEGATIVE")
@@ -292,7 +290,6 @@ def get_alerts():
                     "timestamp": now.isoformat()
                 })
 
-        # 3. DYNAMIC ALERT: Multi-Platform Detection
         platforms = set(p.get("platform", "unknown").lower() for p in all_posts)
         if len(platforms) > 1:
             alerts.append({
@@ -304,7 +301,6 @@ def get_alerts():
                 "timestamp": now.isoformat()
             })
 
-        # 4. DYNAMIC ALERT: High-Value Keyword Detection
         high_value_keywords = ["cisco", "ransomware", "vulnerability", "attack", "cert-in", "ai", "regulation", "china", "india"]
         found_keywords = set()
         for p in all_posts:
@@ -328,6 +324,7 @@ def get_alerts():
 
     alerts.sort(key=lambda x: x["timestamp"], reverse=True)
     return {"alerts": alerts}
+
 @app.get("/api/v1/analytics/demographics")
 def get_demographics():
     """Generate privacy-safe, inferred demographic aggregations."""
@@ -337,7 +334,6 @@ def get_demographics():
         if not posts:
             return {"regions": [], "professions": [], "age_brackets": [], "languages": []}
 
-        # 1. Infer Professional Interest from Narrative
         profession_map = {
             "Cyber Attack": "Cybersecurity & InfoSec",
             "AI Development and Regulation": "AI Research & Tech Policy",
@@ -351,7 +347,6 @@ def get_demographics():
             prof = profession_map.get(p.get("narrative_name"), "General Public")
             professions[prof] = professions.get(prof, 0) + 1
 
-        # 2. Infer Region from Text Keywords
         region_keywords = {
             "South Asia": ["india", "sbi", "hdfc", "cert-in", "rbi", "sebi", "modi"],
             "North America": ["us", "usa", "washington", "silicon valley", "new york"],
@@ -371,12 +366,10 @@ def get_demographics():
             if not matched:
                 regions["Global"] += 1
 
-        # 3. Infer Age Bracket from Platform & Content Length
         age_brackets = {"18-29": 0, "30-49": 0, "50+": 0}
         for p in posts:
             plat = p.get("platform", "").lower()
             text_len = len(p.get("text_content") or "")
-            # Simple heuristic: Reddit = younger, X/Long text = older
             if plat == "reddit":
                 age_brackets["18-29"] += 1
             elif text_len > 150:
@@ -384,10 +377,7 @@ def get_demographics():
             else:
                 age_brackets["50+"] += 1
 
-        # 4. Language (Mocked for demo, as 99% is English)
         languages = {"English": len(posts), "Hindi": max(1, len(posts)//10), "Mandarin": max(1, len(posts)//15)}
-
-        # Format for frontend
         format_data = lambda d: [{"name": k, "value": v} for k, v in d.items() if v > 0]
 
         return {
@@ -401,6 +391,120 @@ def get_demographics():
     except Exception as e:
         print(f"Demographics error: {e}")
         return {"regions": [], "professions": [], "age_brackets": [], "languages": []}
+
+@app.get("/api/v1/graph/intelligence")
+def get_advanced_network_intelligence():
+    """Extract advanced graph metrics using safe Cypher with coalesce() for missing properties."""
+    try:
+        with neo4j_driver.session() as session:
+            # Test connection and get total count
+            total_result = session.run("MATCH (n) RETURN count(n) as count").single()
+            total_nodes = total_result["count"] if total_result else 0
+            
+            if total_nodes == 0:
+                return {
+                    "influencers": [],
+                    "bridges": [],
+                    "communities": [],
+                    "total_nodes": 0,
+                    "message": "Neo4j database is empty. Run graph_builder.py first."
+                }
+
+            # 1. Top Influencers - uses coalesce() to handle missing properties safely
+            influencer_query = """
+            MATCH (n)
+            OPTIONAL MATCH (n)-[r]-()
+            WITH n, count(r) as degree
+            WHERE degree > 0
+            RETURN coalesce(n.name, n.label, n.id, toString(id(n))) as name,
+                   labels(n)[0] as type,
+                   degree
+            ORDER BY degree DESC
+            LIMIT 5
+            """
+            influencers = []
+            for record in session.run(influencer_query):
+                influencers.append({
+                    "name": record["name"] or "Unknown Node",
+                    "type": record["type"] or "Entity",
+                    "degree": record["degree"]
+                })
+
+            # 2. Bridge Nodes - nodes connected to different label types
+            bridge_query = """
+            MATCH (n)-[]-(a), (n)-[]-(b)
+            WHERE a <> b AND labels(a)[0] <> labels(b)[0]
+            WITH n, count(DISTINCT labels(a)[0] + '|' + labels(b)[0]) as bridge_score
+            WHERE bridge_score > 0
+            RETURN coalesce(n.name, n.label, n.id, toString(id(n))) as name, bridge_score
+            ORDER BY bridge_score DESC
+            LIMIT 5
+            """
+            bridges = []
+            seen_bridge_names = set()
+            try:
+                for record in session.run(bridge_query):
+                    name = record["name"]
+                    if name and name not in seen_bridge_names:
+                        seen_bridge_names.add(name)
+                        bridges.append({
+                            "name": name,
+                            "bridge_score": record["bridge_score"]
+                        })
+            except Exception as e:
+                print(f"Bridge query skipped: {e}")
+            
+            # Fallback: pick diverse high-degree nodes from different labels
+            if len(bridges) < 3:
+                diverse_query = """
+                MATCH (n)
+                OPTIONAL MATCH (n)-[r]-()
+                WITH n, labels(n)[0] as label, count(r) as degree
+                WHERE degree > 0
+                RETURN coalesce(n.name, n.label, n.id, toString(id(n))) as name, label, degree
+                ORDER BY label, degree DESC
+                """
+                label_seen = set()
+                for record in session.run(diverse_query):
+                    name = record["name"]
+                    label = record["label"]
+                    if name and name not in seen_bridge_names and label not in label_seen:
+                        seen_bridge_names.add(name)
+                        label_seen.add(label)
+                        bridges.append({
+                            "name": name,
+                            "bridge_score": record["degree"]
+                        })
+                    if len(bridges) >= 5:
+                        break
+
+            # 3. Community Clusters - group by Neo4j label (always exists)
+            community_query = """
+            MATCH (n)
+            RETURN labels(n)[0] as community, count(n) as size
+            ORDER BY size DESC
+            """
+            communities = []
+            for record in session.run(community_query):
+                communities.append({
+                    "community": record["community"] or "Unknown",
+                    "size": record["size"]
+                })
+
+            return {
+                "influencers": influencers,
+                "bridges": bridges,
+                "communities": communities,
+                "total_nodes": total_nodes
+            }
+
+    except Neo4jError as exc:
+        print(f"Neo4j Error: {exc}")
+        raise HTTPException(status_code=500, detail=f"Graph intelligence failed: {str(exc)}") from exc
+    except Exception as exc:
+        print(f"General Error: {exc}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(exc)}") from exc
+
 @app.on_event("shutdown")
 def shutdown_event():
     neo4j_driver.close()

@@ -8,6 +8,7 @@ import NarrativeTracker from './components/NarrativeTracker';
 import CrossPlatformView from './components/CrossPlatformView';
 import AlertsView from './components/AlertsView';
 import DemographicsView from './components/DemographicsView';
+import NetworkIntelligenceView from './components/NetworkIntelligenceView';
 
 const API_URL = 'http://localhost:8000/api/v1';
 const SENTIMENT_COLORS = { Positive: '#10b981', Negative: '#ef4444', Neutral: '#f59e0b', ABSTAIN: '#6b7280' };
@@ -90,7 +91,7 @@ function App() {
       <header className="mb-8 flex justify-between items-center border-b border-gray-700 pb-4">
         <h1 className="text-3xl font-bold tracking-wider" style={{ color: '#00f0ff' }}>NETRA INTELLIGENCE DASHBOARD</h1>
         {!investigationData && (
-          <div className="flex gap-3 items-center">
+          <div className="flex gap-3 items-center flex-wrap">
             <button onClick={() => setActiveTab('analytics')} className={`px-4 py-2 rounded transition-colors text-sm font-medium ${activeTab === 'analytics' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
               Analytics
             </button>
@@ -105,6 +106,9 @@ function App() {
             </button>
             <button onClick={() => setActiveTab('demographics')} className={`px-4 py-2 rounded transition-colors text-sm font-medium ${activeTab === 'demographics' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
               Demographics
+            </button>
+            <button onClick={() => setActiveTab('network_intel')} className={`px-4 py-2 rounded transition-colors text-sm font-medium ${activeTab === 'network_intel' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+              Network Intel
             </button>
             <button onClick={() => setActiveTab('graph')} className={`px-4 py-2 rounded transition-colors text-sm font-medium ${activeTab === 'graph' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
               Network Graph
@@ -207,6 +211,10 @@ function App() {
 
           {activeTab === 'demographics' && (
             <DemographicsView key={refreshKey} />
+          )}
+
+          {activeTab === 'network_intel' && (
+            <NetworkIntelligenceView key={refreshKey} />
           )}
           
           {activeTab === 'graph' && (
