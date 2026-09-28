@@ -7,6 +7,7 @@ import NetworkGraph from './components/NetworkGraph';
 import NarrativeTracker from './components/NarrativeTracker';
 import CrossPlatformView from './components/CrossPlatformView';
 import AlertsView from './components/AlertsView';
+import DemographicsView from './components/DemographicsView';
 
 const API_URL = 'http://localhost:8000/api/v1';
 const SENTIMENT_COLORS = { Positive: '#10b981', Negative: '#ef4444', Neutral: '#f59e0b', ABSTAIN: '#6b7280' };
@@ -21,6 +22,9 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
   const [investigationData, setInvestigationData] = useState(null);
+  
+  // 🔄 MAGIC REFRESH KEY
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const fetchData = async () => {
     setLoading(true);
@@ -99,12 +103,25 @@ function App() {
             <button onClick={() => setActiveTab('alerts')} className={`px-4 py-2 rounded transition-colors text-sm font-medium ${activeTab === 'alerts' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
               Alerts
             </button>
+            <button onClick={() => setActiveTab('demographics')} className={`px-4 py-2 rounded transition-colors text-sm font-medium ${activeTab === 'demographics' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+              Demographics
+            </button>
             <button onClick={() => setActiveTab('graph')} className={`px-4 py-2 rounded transition-colors text-sm font-medium ${activeTab === 'graph' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
               Network Graph
             </button>
-            <button onClick={fetchData} disabled={loading} className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 flex items-center gap-2 text-gray-300 transition-colors text-sm font-medium">
+            
+            {/* 🔄 FIXED REFRESH BUTTON */}
+            <button 
+              onClick={() => { 
+                fetchData(); 
+                setRefreshKey(prev => prev + 1);
+              }} 
+              disabled={loading} 
+              className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 flex items-center gap-2 text-gray-300 transition-colors text-sm font-medium"
+            >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
             </button>
+            
             {lastUpdated && <span className="text-xs text-gray-400 ml-2">Last Updated: {lastUpdated.toLocaleTimeString()}</span>}
           </div>
         )}
@@ -175,20 +192,25 @@ function App() {
             </div>
           )}
           
+          {/* 🔄 PASSING REFRESH KEY TO FORCE REMOUNT */}
           {activeTab === 'mutation' && (
-            <NarrativeTracker />
+            <NarrativeTracker key={refreshKey} />
           )}
 
           {activeTab === 'correlation' && (
-            <CrossPlatformView />
+            <CrossPlatformView key={refreshKey} />
           )}
 
           {activeTab === 'alerts' && (
-            <AlertsView />
+            <AlertsView key={refreshKey} />
+          )}
+
+          {activeTab === 'demographics' && (
+            <DemographicsView key={refreshKey} />
           )}
           
           {activeTab === 'graph' && (
-            <NetworkGraph graphData={graphData} />
+            <NetworkGraph graphData={graphData} key={refreshKey} />
           )}
         </>
       )}
