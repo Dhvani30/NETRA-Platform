@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
-import { Search, Globe, MessageSquare, RefreshCw, Share2 } from 'lucide-react';
+import { Search, Globe, MessageSquare, RefreshCw, Share2, Video } from 'lucide-react'; // Changed Youtube to Video
 import InvestigationView from './components/InvestigationView';
 import NetworkGraph from './components/NetworkGraph';
 import NarrativeTracker from './components/NarrativeTracker';
@@ -24,7 +24,6 @@ function App() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [investigationData, setInvestigationData] = useState(null);
   
-  // 🔄 MAGIC REFRESH KEY
   const [refreshKey, setRefreshKey] = useState(0);
 
   const fetchData = async () => {
@@ -69,10 +68,12 @@ function App() {
 
   useEffect(() => { fetchData(); }, []);
 
+  // ✅ FIXED: Using Video icon instead of Youtube
   const getPlatformIcon = (platform) => {
     const p = platform?.toLowerCase() || '';
     if (p.includes('twitter') || p.includes('x')) return <Share2 className="w-4 h-4" />;
     if (p.includes('reddit')) return <MessageSquare className="w-4 h-4" />;
+    if (p.includes('youtube')) return <Video className="w-4 h-4 text-red-500" />; // Video icon in red
     return <Globe className="w-4 h-4" />;
   };
 
@@ -114,7 +115,6 @@ function App() {
               Network Graph
             </button>
             
-            {/* 🔄 FIXED REFRESH BUTTON */}
             <button 
               onClick={() => { 
                 fetchData(); 
@@ -196,7 +196,6 @@ function App() {
             </div>
           )}
           
-          {/* 🔄 PASSING REFRESH KEY TO FORCE REMOUNT */}
           {activeTab === 'mutation' && (
             <NarrativeTracker key={refreshKey} />
           )}

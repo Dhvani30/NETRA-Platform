@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Globe, MessageSquare, Share2, TrendingUp, Activity } from 'lucide-react';
+import { ArrowLeft, Globe, MessageSquare, Share2, TrendingUp, Activity, Video } from 'lucide-react'; // Added Video here
 import NetworkGraph from './NetworkGraph';
 
 export default function InvestigationView({ investigationData, graphData, onBack, searchQuery }) {
@@ -50,10 +50,12 @@ export default function InvestigationView({ investigationData, graphData, onBack
     setFilteredGraph({ nodes: filteredNodes, links: relevantLinks });
   }, [graphData, searchQuery]);
 
+  // ✅ UPDATED: Added YouTube icon detection
   const getPlatformIcon = (platform) => {
     const platformLower = platform?.toLowerCase() || '';
     if (platformLower.includes('twitter') || platformLower.includes('x')) return <Share2 className="w-4 h-4" />;
     if (platformLower.includes('reddit')) return <MessageSquare className="w-4 h-4" />;
+    if (platformLower.includes('youtube')) return <Video className="w-4 h-4 text-red-500" />; // YouTube icon
     return <Globe className="w-4 h-4" />;
   };
 

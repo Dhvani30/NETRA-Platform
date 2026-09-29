@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { AlertTriangle, TrendingUp, Globe, Bell, BellOff, RefreshCw } from 'lucide-react';
+import { AlertTriangle, TrendingUp, Globe, Bell, BellOff, RefreshCw, Video } from 'lucide-react'; // Changed Youtube to Video
 
 const API_URL = 'http://localhost:8000/api/v1';
 
@@ -16,10 +16,26 @@ const TYPE_ICONS = {
   ENTITY: <Globe className="w-6 h-6" />
 };
 
+// Helper to highlight "YOUTUBE" in alert descriptions
+const highlightPlatforms = (text) => {
+  if (!text) return null;
+  const parts = text.split(/(YOUTUBE|X|REDDIT|TELEGRAM)/gi);
+  return parts.map((part, i) => {
+    if (part.toUpperCase() === 'YOUTUBE') {
+      // Using Video icon here instead of Youtube
+      return <span key={i} className="text-red-400 font-bold flex items-center gap-1 inline-flex"><Video className="w-3 h-3" />YOUTUBE</span>;
+    }
+    if (['X', 'REDDIT', 'TELEGRAM'].includes(part.toUpperCase())) {
+      return <span key={i} className="text-cyan-400 font-bold">{part}</span>;
+    }
+    return part;
+  });
+};
+
 export default function AlertsView() {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false); // State for button spinner
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchAlerts = async (isManualRefresh = false) => {
     if (isManualRefresh) {
@@ -29,7 +45,6 @@ export default function AlertsView() {
     }
 
     try {
-      // Added ?t=... to prevent browser caching so you see fresh data every time
       const res = await axios.get(`${API_URL}/analytics/alerts?t=${Date.now()}`);
       setAlerts(res.data.alerts || []);
     } catch (error) {
@@ -42,7 +57,6 @@ export default function AlertsView() {
 
   useEffect(() => {
     fetchAlerts();
-    // Auto-refresh every 30 seconds
     const interval = setInterval(() => fetchAlerts(true), 30000);
     return () => clearInterval(interval);
   }, []);
@@ -75,7 +89,6 @@ export default function AlertsView() {
           </div>
         </div>
         
-        {/* FIXED REFRESH BUTTON */}
         <button 
           onClick={() => fetchAlerts(true)}
           disabled={refreshing}
@@ -118,7 +131,7 @@ export default function AlertsView() {
                         </span>
                       </div>
                       <p className="text-gray-300 text-sm leading-relaxed max-w-3xl">
-                        {alert.description}
+                        {highlightPlatforms(alert.description)}
                       </p>
                       <div className="mt-2 text-xs text-gray-500 flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>

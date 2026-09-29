@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { Activity, AlertTriangle, TrendingUp, Clock } from 'lucide-react';
+import { Activity, AlertTriangle, TrendingUp, Clock, Share2, MessageSquare, Globe, Video } from 'lucide-react'; // Added Video here
 
 const API_URL = 'http://localhost:8000/api/v1';
 
@@ -42,6 +42,15 @@ export default function NarrativeTracker() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ✅ ADDED: Platform icon helper for consistency across the app
+  const getPlatformIcon = (platform) => {
+    const platformLower = platform?.toLowerCase() || '';
+    if (platformLower.includes('twitter') || platformLower.includes('x')) return <Share2 className="w-4 h-4" />;
+    if (platformLower.includes('reddit')) return <MessageSquare className="w-4 h-4" />;
+    if (platformLower.includes('youtube')) return <Video className="w-4 h-4 text-red-500" />;
+    return <Globe className="w-4 h-4" />;
   };
 
   return (
@@ -106,7 +115,7 @@ export default function NarrativeTracker() {
                   <XAxis dataKey="phase" stroke="#888" />
                   <YAxis stroke="#888" />
                   <Tooltip 
-                    contentStyle={{ backgroundColor: '#13131f', border: '1px solid #333' }}
+                    contentStyle={{ backgroundColor: '#13131f', border: '1px solid #333', color: '#fff' }}
                     itemStyle={{ color: '#00f0ff' }}
                   />
                   <Area type="monotone" dataKey="volume" stroke="#00f0ff" fillOpacity={1} fill="url(#colorVolume)" />

@@ -1,10 +1,19 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Network, Users, GitMerge, Layers, RefreshCw } from 'lucide-react';
+import { Network, Users, GitMerge, Layers, RefreshCw, Share2, MessageSquare, Globe, Video } from 'lucide-react';
 
 const API_URL = 'http://localhost:8000/api/v1';
 const COLORS = ['#00f0ff', '#a855f7', '#ec4899', '#3b82f6', '#eab308', '#10b981', '#ef4444'];
+
+// ✅ ADDED: Helper to show platform icons in the intelligence lists
+const getPlatformIcon = (name) => {
+  const n = (name || '').toLowerCase();
+  if (n.includes('youtube')) return <Video className="w-4 h-4 text-red-500" />;
+  if (n.includes('twitter') || n.includes('x')) return <Share2 className="w-4 h-4" />;
+  if (n.includes('reddit')) return <MessageSquare className="w-4 h-4" />;
+  return <Globe className="w-4 h-4" />;
+};
 
 export default function NetworkIntelligenceView() {
   const [data, setData] = useState(null);
@@ -52,10 +61,12 @@ export default function NetworkIntelligenceView() {
         <button 
           onClick={fetchIntelligence}
           disabled={loading}
-          className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium flex items-center gap-2"
+          className={`px-4 py-2 rounded text-white text-sm font-medium flex items-center gap-2 transition-all ${
+            loading ? 'bg-gray-600 cursor-wait' : 'bg-gray-700 hover:bg-gray-600'
+          }`}
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> 
-          Recalculate
+          {loading ? 'Recalculating...' : 'Recalculate'}
         </button>
       </div>
 
@@ -72,7 +83,7 @@ export default function NetworkIntelligenceView() {
                 <Users className="w-5 h-5 text-purple-400" />
                 <span className="text-sm text-gray-400 font-medium">Top Influencers</span>
               </div>
-              <div className="text-3xl font-bold text-white">{data.influencers.length}</div>
+              <div className="text-3xl font-bold text-white">{data.influencers?.length || 0}</div>
               <div className="text-xs text-gray-500 mt-1">Highest degree centrality</div>
             </div>
             <div className="p-4 rounded-lg border border-gray-800" style={{ backgroundColor: '#13131f' }}>
@@ -80,7 +91,7 @@ export default function NetworkIntelligenceView() {
                 <GitMerge className="w-5 h-5 text-cyan-400" />
                 <span className="text-sm text-gray-400 font-medium">Bridge Nodes</span>
               </div>
-              <div className="text-3xl font-bold text-white">{data.bridges.length}</div>
+              <div className="text-3xl font-bold text-white">{data.bridges?.length || 0}</div>
               <div className="text-xs text-gray-500 mt-1">Cross-community connectors</div>
             </div>
             <div className="p-4 rounded-lg border border-gray-800" style={{ backgroundColor: '#13131f' }}>
@@ -88,7 +99,7 @@ export default function NetworkIntelligenceView() {
                 <Layers className="w-5 h-5 text-emerald-400" />
                 <span className="text-sm text-gray-400 font-medium">Communities</span>
               </div>
-              <div className="text-3xl font-bold text-white">{data.communities.length}</div>
+              <div className="text-3xl font-bold text-white">{data.communities?.length || 0}</div>
               <div className="text-xs text-gray-500 mt-1">Distinct node clusters</div>
             </div>
           </div>
@@ -102,13 +113,17 @@ export default function NetworkIntelligenceView() {
                 <Users className="w-5 h-5" /> TOP INFLUENCERS (Degree Centrality)
               </h2>
               <div className="space-y-3">
-                {data.influencers.map((inf, i) => (
+                {data.influencers?.length > 0 ? data.influencers.map((inf, i) => (
                   <div key={i} className="flex items-center justify-between p-3 rounded bg-gray-900/50 border border-gray-800">
                     <div className="flex items-center gap-3">
                       <span className="text-lg font-bold text-gray-600">#{i + 1}</span>
-                      <div>
-                        <div className="font-bold text-white">{formatName(inf.name)}</div>
-                        <div className="text-xs text-purple-400">{inf.type || 'Entity'}</div>
+                      <div className="flex items-center gap-2">
+                        {/* Show platform icon if the influencer is a platform */}
+                        {inf.type === 'Platform' && getPlatformIcon(inf.name)}
+                        <div>
+                          <div className="font-bold text-white">{formatName(inf.name)}</div>
+                          <div className="text-xs text-purple-400">{inf.type || 'Entity'}</div>
+                        </div>
                       </div>
                     </div>
                     <div className="text-right">
@@ -116,7 +131,9 @@ export default function NetworkIntelligenceView() {
                       <div className="text-xs text-gray-500">Connections</div>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <div className="text-center py-8 text-gray-500 text-sm">No influencer data available.</div>
+                )}
               </div>
             </div>
 
@@ -127,11 +144,15 @@ export default function NetworkIntelligenceView() {
               </h2>
               <p className="text-xs text-gray-400 mb-4">Entities that connect disparate platforms or narratives, acting as information conduits.</p>
               <div className="space-y-3">
-                {data.bridges.length > 0 ? data.bridges.map((bridge, i) => (
+                {data.bridges?.length > 0 ? data.bridges.map((bridge, i) => (
                   <div key={i} className="flex items-center justify-between p-3 rounded bg-gray-900/50 border border-gray-800">
-                    <div className="font-bold text-white">{formatName(bridge.name)}</div>
+                    <div className="flex items-center gap-2">
+                      {/* Attempt to show platform icon if the bridge name is a platform */}
+                      {['YOUTUBE', 'X', 'TWITTER', 'REDDIT'].includes(bridge.name.toUpperCase()) && getPlatformIcon(bridge.name)}
+                      <div className="font-bold text-white">{formatName(bridge.name)}</div>
+                    </div>
                     <div className="px-3 py-1 rounded-full bg-cyan-900/30 text-cyan-400 text-xs font-bold border border-cyan-800">
-                      Bridge Score: {bridge.bridge_score}
+                      Score: {bridge.bridge_score}
                     </div>
                   </div>
                 )) : (
@@ -147,12 +168,12 @@ export default function NetworkIntelligenceView() {
               <h2 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: '#00f0ff' }}>
                 <Layers className="w-5 h-5" /> COMMUNITY CLUSTER DISTRIBUTION
               </h2>
-              {data.communities.length === 0 ? (
+              {data.communities?.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">No community data available.</div>
               ) : (
                 <div style={{ width: '100%', height: 300 }}>
                   <ResponsiveContainer>
-                    <BarChart data={data.communities}>
+                    <BarChart data={data.communities || []}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#333" />
                       <XAxis 
                         dataKey="community" 
@@ -166,7 +187,7 @@ export default function NetworkIntelligenceView() {
                         cursor={{ fill: 'rgba(255,255,255,0.05)' }}
                       />
                       <Bar dataKey="size" radius={[4, 4, 0, 0]}>
-                        {data.communities.map((entry, index) => (
+                        {(data.communities || []).map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Bar>

@@ -71,6 +71,10 @@ export default function NetworkGraph({ graphData, searchQuery = null, highlightQ
       const q = highlightQuery.toLowerCase();
       if ((node.label || '').toLowerCase().includes(q)) return '#00f0ff';
     }
+    // 🎨 SPECIAL CASE: Make YouTube nodes red to match the app's branding
+    if (node.group === 'Platform' && (node.label || '').toUpperCase() === 'YOUTUBE') {
+      return '#ef4444'; 
+    }
     return NODE_COLORS[node.group] || '#888888';
   };
 
@@ -115,7 +119,8 @@ export default function NetworkGraph({ graphData, searchQuery = null, highlightQ
         {highlightQuery && <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full" style={{backgroundColor: '#00f0ff'}}></span> Search Match</span>}
         <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full" style={{backgroundColor: '#a855f7'}}></span> Organization</span>
         <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full" style={{backgroundColor: '#ec4899'}}></span> Narrative</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full" style={{backgroundColor: '#3b82f6'}}></span> Platform</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full" style={{backgroundColor: '#3b82f6'}}></span> Platform (X/Reddit)</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full" style={{backgroundColor: '#ef4444'}}></span> Platform (YouTube)</span>
         <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full" style={{backgroundColor: '#eab308'}}></span> Location</span>
         <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full" style={{backgroundColor: '#64748b'}}></span> Post</span>
       </div>

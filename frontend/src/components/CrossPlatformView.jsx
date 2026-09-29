@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Share2, MessageSquare, Globe, ArrowRight, Activity } from 'lucide-react';
+import { Share2, MessageSquare, Globe, ArrowRight, Activity, Video } from 'lucide-react'; // Changed Youtube to Video
 
 const API_URL = 'http://localhost:8000/api/v1';
 
 const PLATFORM_ICONS = {
   X: <Share2 className="w-5 h-5" />,
   REDDIT: <MessageSquare className="w-5 h-5" />,
+  YOUTUBE: <Video className="w-5 h-5" />, // Using Video icon
   TELEGRAM: <Globe className="w-5 h-5" />,
   UNKNOWN: <Globe className="w-5 h-5" />
 };
@@ -14,6 +15,7 @@ const PLATFORM_ICONS = {
 const PLATFORM_COLORS = {
   X: '#3b82f6',       // Blue
   REDDIT: '#ef4444',  // Red
+  YOUTUBE: '#ff0000', // YouTube Red
   TELEGRAM: '#0088cc',// Telegram Blue
   UNKNOWN: '#6b7280'  // Gray
 };

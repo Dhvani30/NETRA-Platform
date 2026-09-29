@@ -47,7 +47,10 @@ export default function DemographicsView() {
         </div>
         <button 
           onClick={fetchDemographics}
-          className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium"
+          disabled={loading}
+          className={`px-4 py-2 rounded text-white text-sm font-medium transition-all ${
+            loading ? 'bg-gray-600 cursor-wait' : 'bg-gray-700 hover:bg-gray-600'
+          }`}
         >
           Refresh Analysis
         </button>
@@ -67,15 +70,15 @@ export default function DemographicsView() {
             </div>
             <div className="p-4 rounded-lg border border-gray-800" style={{ backgroundColor: '#13131f' }}>
               <div className="text-sm text-gray-400 mb-1">Active Regions</div>
-              <div className="text-3xl font-bold text-cyan-400">{data.regions.length}</div>
+              <div className="text-3xl font-bold text-cyan-400">{data.regions?.length || 0}</div>
             </div>
             <div className="p-4 rounded-lg border border-gray-800" style={{ backgroundColor: '#13131f' }}>
               <div className="text-sm text-gray-400 mb-1">Professional Sectors</div>
-              <div className="text-3xl font-bold text-purple-400">{data.professions.length}</div>
+              <div className="text-3xl font-bold text-purple-400">{data.professions?.length || 0}</div>
             </div>
             <div className="p-4 rounded-lg border border-gray-800" style={{ backgroundColor: '#13131f' }}>
               <div className="text-sm text-gray-400 mb-1">Languages Detected</div>
-              <div className="text-3xl font-bold text-emerald-400">{data.languages.length}</div>
+              <div className="text-3xl font-bold text-emerald-400">{data.languages?.length || 0}</div>
             </div>
           </div>
 
@@ -88,11 +91,11 @@ export default function DemographicsView() {
               </h2>
               <div style={{ width: '100%', height: 300 }}>
                 <ResponsiveContainer>
-                  <BarChart data={data.professions} layout="vertical">
+                  <BarChart data={data.professions || []} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" stroke="#333" />
                     <XAxis type="number" stroke="#888" />
                     <YAxis dataKey="name" type="category" width={150} stroke="#888" style={{ fontSize: '12px' }} />
-                    <Tooltip contentStyle={{ backgroundColor: '#13131f', border: '1px solid #333' }} cursor={{fill: 'rgba(255,255,255,0.05)'}} />
+                    <Tooltip contentStyle={{ backgroundColor: '#13131f', border: '1px solid #333', color: '#fff' }} cursor={{fill: 'rgba(255,255,255,0.05)'}} />
                     <Bar dataKey="value" fill="#a855f7" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -107,10 +110,21 @@ export default function DemographicsView() {
               <div style={{ width: '100%', height: 300 }}>
                 <ResponsiveContainer>
                   <PieChart>
-                    <Pie data={data.regions} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
-                      {data.regions.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                    <Pie 
+                      data={data.regions || []} 
+                      dataKey="value" 
+                      nameKey="name" 
+                      cx="50%" 
+                      cy="50%" 
+                      outerRadius={100} 
+                      label={({ name, percent }) => name ? `${name} ${(percent * 100).toFixed(0)}%` : ''} 
+                      labelLine={false}
+                    >
+                      {(data.regions || []).map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
                     </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: '#13131f', border: '1px solid #333' }} />
+                    <Tooltip contentStyle={{ backgroundColor: '#13131f', border: '1px solid #333', color: '#fff' }} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -123,11 +137,11 @@ export default function DemographicsView() {
               </h2>
               <div style={{ width: '100%', height: 300 }}>
                 <ResponsiveContainer>
-                  <BarChart data={data.age_brackets}>
+                  <BarChart data={data.age_brackets || []}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#333" />
                     <XAxis dataKey="name" stroke="#888" />
                     <YAxis stroke="#888" />
-                    <Tooltip contentStyle={{ backgroundColor: '#13131f', border: '1px solid #333' }} cursor={{fill: 'rgba(255,255,255,0.05)'}} />
+                    <Tooltip contentStyle={{ backgroundColor: '#13131f', border: '1px solid #333', color: '#fff' }} cursor={{fill: 'rgba(255,255,255,0.05)'}} />
                     <Bar dataKey="value" fill="#ec4899" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -142,10 +156,21 @@ export default function DemographicsView() {
               <div style={{ width: '100%', height: 300 }}>
                 <ResponsiveContainer>
                   <PieChart>
-                    <Pie data={data.languages} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5}>
-                      {data.languages.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />)}
+                    <Pie 
+                      data={data.languages || []} 
+                      dataKey="value" 
+                      nameKey="name" 
+                      cx="50%" 
+                      cy="50%" 
+                      innerRadius={60} 
+                      outerRadius={100} 
+                      paddingAngle={5}
+                    >
+                      {(data.languages || []).map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />
+                      ))}
                     </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: '#13131f', border: '1px solid #333' }} />
+                    <Tooltip contentStyle={{ backgroundColor: '#13131f', border: '1px solid #333', color: '#fff' }} />
                     <Legend wrapperStyle={{ color: '#fff' }} />
                   </PieChart>
                 </ResponsiveContainer>
