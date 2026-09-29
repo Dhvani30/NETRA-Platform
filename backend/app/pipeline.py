@@ -5,11 +5,20 @@ import subprocess
 import time
 from datetime import datetime, timezone
 from pymongo import MongoClient
+from dotenv import load_dotenv
 
-# --- Configuration ---
-MONGO_URI = "mongodb://admin:password123@localhost:27017/?authSource=admin"
-DB_NAME = "social_intel"
-COLLECTION_NAME = "raw_posts"
+# Load environment variables from .env file
+load_dotenv()
+
+# --- Configuration (Read from Environment Variables) ---
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://admin:password123@localhost:27017/?authSource=admin")
+DB_NAME = os.getenv("DB_NAME", "social_intel")
+COLLECTION_NAME = os.getenv("COLLECTION_NAME", "raw_posts")
+
+# Neo4j Configuration
+NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
 
 def run_command(script_name):
     print(f"\n[⚙️] Running {script_name}...")
@@ -22,7 +31,7 @@ def run_command(script_name):
             print(f"[⚠️] {script_name} had issues, but we will continue.")
             print(result.stderr)
     except Exception as e:
-        print(f"[] Failed to run {script_name}: {e}")
+        print(f"X Failed to run {script_name}: {e}")
 
 def inject_mock_data_if_empty():
     """If the DB is empty or old, inject fresh, high-impact demo data."""
@@ -36,7 +45,7 @@ def inject_mock_data_if_empty():
     })
 
     if recent_count < 5:
-        print("[🤖] Database is empty or stale. Injecting fresh Intelligence Data...")
+        print("[X] Database is empty or stale. Injecting fresh Intelligence Data...")
         collection.delete_many({}) # Wipe old junk
         
         fresh_data = [
@@ -57,7 +66,11 @@ def inject_mock_data_if_empty():
         print(f"[✅] Database already has {recent_count} recent posts. Skipping injection.")
 
 def main():
-    print("🚀 STARTING NETRA AUTOMATED PIPELINE 🚀")
+    print(" STARTING NETRA AUTOMATED PIPELINE 🚀")
+    print("="*50)
+    print(f" MongoDB URI: {MONGO_URI[:50]}...")
+    print(f" Database: {DB_NAME}")
+    print(f" Neo4j URI: {NEO4J_URI}")
     print("="*50)
     
     # 1. Ensure Data
@@ -72,20 +85,20 @@ def main():
         run_command("graph_builder.py")
         
     print("\n" + "="*50)
-    print("🎉 PIPELINE COMPLETE! Your Dashboard is ready.")
+    print(" PIPELINE COMPLETE! Your Dashboard is ready.")
     print("Starting Backend and Frontend servers...")
     
     # 4. Start Backend
-    print("[] Starting FastAPI Backend on port 8000...")
+    print(" Starting FastAPI Backend on port 8000...")
     subprocess.Popen(["python", "-m", "uvicorn", "main:app", "--reload", "--port", "8000"], cwd="..")
     
     time.sleep(2) # Wait for backend to initialize
     
     # 5. Start Frontend
-    print("[] Starting React Frontend on port 5173...")
+    print(" Starting React Frontend on port 5173...")
     subprocess.Popen("npm run dev", cwd="../../frontend", shell=True)
     
-    print("\n✅ NETRA is fully live! Open http://localhost:5173")
+    print("\n NETRA is fully live! Open http://localhost:5173")
     input("Press Enter to stop all services...")
 
 if __name__ == "__main__":
