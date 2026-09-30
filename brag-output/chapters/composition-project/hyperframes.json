@@ -8,5 +8,13 @@
   },
   "media": {
     "autoProxy": true
-  }
+  },
+  "registryItems": [
+    {
+      "name": "fade-through",
+      "type": "hyperframes:component",
+      "target": "compositions/components/fade-through.html"
+    }
+  ],
+  "authoringSkill": "brag"
 }

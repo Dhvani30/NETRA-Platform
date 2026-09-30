@@ -1,55 +1,68 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=1920, height=1080" />
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      html,
-      body {
-        margin: 0;
-        width: 1920px;
-        height: 1080px;
-        overflow: hidden;
-        background: #0a0a0a;
-      }
-      #root {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-      }
-      #title {
-        color: #f4f4f5;
-        font-size: 72px;
-        font-weight: 600;
-        letter-spacing: -0.03em;
-      }
-    </style>
-  </head>
-  <body>
-    <div
-      id="root"
-      data-composition-id="main"
-      data-start="0"
-      data-duration="10"
-      data-width="1920"
-      data-height="1080"
-    >
-      <h1 id="title" class="clip" data-start="0" data-duration="10" data-track-index="0">Title</h1>
-    </div>
-    <script>
-      const tl = gsap.timeline({ paused: true });
-      // Example: tl.fromTo("#title", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.6 }, 0);
-      window.__timelines["main"] = tl;
-      tl.seek(0);
-    </script>
-  </body>
-</html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1920,height=1080" />
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+:root{--bg:#08091a;--panel:#11122a;--panel2:#151631;--lav:#9a9ee8;--bright:#b8bbee;--dim:#7b7fc4;--white:#f2f3fa;--muted:#8e92b0;--green:#70a888;--red:#c07070;--amber:#c09060;--blue:#7090cc}
+*{box-sizing:border-box}html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:var(--bg);color:var(--white);font-family:'Space Grotesk',Arial,sans-serif}#stage{position:relative;width:1920px;height:1080px;overflow:hidden;background:radial-gradient(ellipse at 55% 45%,#16183a 0%,var(--bg) 67%)}
+.scene{position:absolute;inset:0;padding:76px 112px 72px;opacity:0}.scene-inner{height:100%;display:flex;flex-direction:column;position:relative}.topbar{height:68px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff18;padding-bottom:18px}.brand{font-size:27px;font-weight:600;letter-spacing:-.04em}.brand b{color:var(--bright)}.right-meta,.eyebrow,.mono{font-family:'JetBrains Mono',monospace;letter-spacing:.08em;text-transform:uppercase}.right-meta{color:var(--muted);font-size:13px}.nav{display:flex;gap:34px;align-items:center;height:70px;border-bottom:1px solid #ffffff18;color:#9699b5;font-size:17px}.nav .active{color:var(--bright);position:relative}.nav .active:after{content:'';position:absolute;bottom:-25px;left:0;right:0;height:2px;background:var(--lav)}.search{margin-left:auto;min-width:310px;padding:12px 18px;border:1px solid #ffffff20;border-radius:10px;color:#8589a5;font-size:14px;background:#0c0e20}.eyebrow{font-size:13px;color:var(--lav);margin:28px 0 12px}.title-row{display:flex;align-items:end;justify-content:space-between}.title-row h1{font-size:46px;letter-spacing:-.04em;margin:0 0 10px;font-weight:600}.title-row p{color:var(--muted);font-size:17px;margin:0 0 12px}.tag{border:1px solid #9a9ee844;background:#9a9ee811;color:var(--bright);font:11px 'JetBrains Mono',monospace;padding:8px 11px;border-radius:5px;letter-spacing:.06em}.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:22px}.card{background:linear-gradient(145deg,#14152f,#101126);border:1px solid #ffffff18;border-radius:13px;padding:22px 24px;box-shadow:0 18px 50px #02030a33}.card-head{display:flex;align-items:start;justify-content:space-between}.card h2{font-size:19px;font-weight:500;margin:0;letter-spacing:-.02em}.sub{font-size:13px;color:var(--muted);margin-top:7px}.chart-area{height:212px;display:flex;align-items:center;justify-content:center;gap:60px}.donut{width:162px;height:162px;border-radius:50%;background:conic-gradient(var(--green) 0 38%,var(--red) 38% 62%,var(--amber) 62% 84%,var(--muted) 84% 100%);position:relative;box-shadow:0 0 35px #9a9ee81a}.donut:after{content:'';position:absolute;inset:33px;background:#11122a;border-radius:50%}.legend{display:grid;gap:14px;color:#c7c9d9;font-size:14px}.legend span{display:flex;gap:10px;align-items:center}.dot{width:8px;height:8px;border-radius:99px;display:inline-block}.bars{width:100%;display:grid;gap:15px}.bar-row{display:grid;grid-template-columns:190px 1fr;gap:16px;align-items:center;color:#c5c7d7;font-size:14px}.bar{height:10px;background:#222440;border-radius:8px;overflow:hidden}.bar i{height:100%;display:block;background:linear-gradient(90deg,var(--dim),var(--lav));border-radius:8px}.feed{grid-column:1 / 3;min-height:135px}.feed-row{display:flex;justify-content:space-between;align-items:center;border-top:1px solid #ffffff10;padding-top:15px;margin-top:14px;color:#c8cad8;font-size:14px}.feed-row small{font:11px 'JetBrains Mono',monospace;color:var(--muted)}
+.callout{position:absolute;right:112px;bottom:72px;border:1px solid #9a9ee877;background:#10122b;padding:15px 20px;border-radius:8px;box-shadow:0 0 28px #9a9ee81c;color:var(--bright);font:13px 'JetBrains Mono',monospace;letter-spacing:.04em;opacity:0;max-width:520px}.callout:before{content:'';display:inline-block;width:7px;height:7px;border-radius:99px;background:var(--lav);margin-right:11px;vertical-align:1px;box-shadow:0 0 12px var(--lav)}
+#s2sent,#s2nar{outline:1px solid transparent;outline-offset:3px}.focus{outline:1px solid #b8bbee66;box-shadow:0 0 36px #9a9ee822,0 18px 50px #02030a33}.workflow{display:flex;gap:18px;margin-top:42px}.workflow-card{flex:1;border:1px solid #ffffff20;background:linear-gradient(140deg,#14152f,#0f1024);padding:34px;border-radius:15px;min-height:286px}.workflow-card .step{color:var(--lav);font:12px 'JetBrains Mono',monospace}.workflow-card h2{font-size:27px;margin:72px 0 12px;font-weight:500}.workflow-card p{font-size:16px;color:var(--muted);margin:0;line-height:1.5}.search-large{margin-top:52px;padding:22px 24px;border-radius:10px;border:1px solid #9a9ee855;background:#11122a;color:#d2d3e3;font-size:20px;width:100%;box-shadow:0 0 30px #9a9ee817}.search-large span{color:var(--muted);margin-right:15px}.feature-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:17px;margin-top:68px}.feature{height:234px;background:linear-gradient(145deg,#151631,#101126);border:1px solid #ffffff1b;border-radius:14px;padding:24px;position:relative}.feature .n{font:12px 'JetBrains Mono',monospace;color:var(--lav)}.feature h2{font-size:22px;font-weight:500;margin-top:94px}.feature p{font-size:14px;color:var(--muted);margin-top:8px}.closing{position:absolute;bottom:38px;left:0;right:0;text-align:center;color:var(--bright);font:14px 'JetBrains Mono',monospace;letter-spacing:.12em}.wash{position:absolute;inset:0;background:var(--bg);opacity:0;pointer-events:none;z-index:90}.grain{position:absolute;inset:0;pointer-events:none;opacity:.12;background-image:radial-gradient(#ffffff18 .65px,transparent .65px);background-size:6px 6px;mask-image:linear-gradient(transparent,#000 22%,#000 80%,transparent)}
+</style>
+</head>
+<body>
+<div id="stage" data-composition-id="main" data-start="0" data-duration="30" data-width="1920" data-height="1080" data-fps="30">
+<section id="scene1" class="scene"><div class="scene-inner">
+<div class="topbar"><div class="brand">NETRA <b>INTELLIGENCE</b></div><div class="right-meta">Social listening · Sample workspace</div></div>
+<div class="nav"><span class="active">Analytics</span><span>Mutation Tracker</span><span>Cross-Platform</span><span>Alerts</span><span>Demographics</span><span>Network Intel</span><span>Network Graph</span><div class="search">⌕&nbsp;&nbsp; Search posts</div></div>
+<div class="eyebrow">OVERVIEW</div><div class="title-row"><div><h1>Analytics</h1><p>Signals across collected social posts</p></div><div class="tag">ILLUSTRATIVE SAMPLE</div></div>
+<div class="grid"><article id="sentiment-card" class="card"><div class="card-head"><div><h2>Sentiment Distribution</h2><div class="sub">Stored sentiment labels</div></div><span class="tag">POSTS</span></div><div class="chart-area"><div class="donut"></div><div class="legend"><span><i class="dot" style="background:var(--green)"></i>Positive</span><span><i class="dot" style="background:var(--red)"></i>Negative</span><span><i class="dot" style="background:var(--amber)"></i>Neutral</span><span><i class="dot" style="background:var(--muted)"></i>ABSTAIN</span></div></div></article>
+<article id="narrative-card" class="card"><div class="card-head"><div><h2>Emerging Narratives</h2><div class="sub">Themes ranked by post count</div></div><span class="tag">TOP THEMES</span></div><div class="chart-area"><div class="bars"><div class="bar-row"><span>Sample narrative A</span><div class="bar"><i style="width:76%"></i></div></div><div class="bar-row"><span>Sample narrative B</span><div class="bar"><i style="width:56%"></i></div></div><div class="bar-row"><span>Sample narrative C</span><div class="bar"><i style="width:35%"></i></div></div><div class="bar-row"><span>Sample narrative D</span><div class="bar"><i style="width:22%"></i></div></div></div></div></article>
+<article class="card feed"><div class="card-head"><div><h2>Live Intelligence Feed</h2><div class="sub">Latest collected posts</div></div><div class="tag">LATEST</div></div><div class="feed-row"><span>Illustrative post text — sample content shown for layout only</span><small>sample item</small></div></article></div>
+<div class="callout" id="co1">NETRA INTELLIGENCE · COLLECTED POSTS</div></div></section>
+<section id="scene2" class="scene"><div class="scene-inner">
+<div class="topbar"><div class="brand">NETRA <b>INTELLIGENCE</b></div><div class="right-meta">ANALYTICS · METRIC LOGIC</div></div><div class="eyebrow">OVERVIEW METRICS</div><div class="title-row"><div><h1>Two ways to summarize the stream</h1><p>Counts and ranks from stored post fields</p></div><div class="tag">ILLUSTRATIVE SAMPLE</div></div>
+<div class="grid" style="margin-top:46px"><article id="s2sent" class="card"><div class="card-head"><div><h2>Sentiment Distribution</h2><div class="sub">All stored sentiment categories</div></div></div><div class="chart-area"><div class="donut"></div><div class="legend"><span>Stored label counts</span><span>Grouped by sentiment_label</span></div></div></article><article id="s2nar" class="card"><div class="card-head"><div><h2>Emerging Narratives</h2><div class="sub">Narratives ordered by post count</div></div></div><div class="chart-area"><div class="bars"><div class="bar-row"><span>Sample theme A</span><div class="bar"><i style="width:76%"></i></div></div><div class="bar-row"><span>Sample theme B</span><div class="bar"><i style="width:56%"></i></div></div><div class="bar-row"><span>Sample theme C</span><div class="bar"><i style="width:35%"></i></div></div></div></div></article></div>
+<div class="callout" id="co2">COUNTS BY STORED SENTIMENT LABEL → THEMES RANKED BY POST COUNT</div></div></section>
+<section id="scene3" class="scene"><div class="scene-inner">
+<div class="topbar"><div class="brand">NETRA <b>INTELLIGENCE</b></div><div class="right-meta">INVESTIGATE · TRACK · COMPARE</div></div><div class="eyebrow">FOLLOW A QUESTION</div><h1 style="font-size:52px;letter-spacing:-.04em;margin:34px 0 0">From one topic to connected views</h1>
+<div id="search-focus" class="search-large"><span>⌕</span>Search social posts…</div><div class="workflow"><div class="workflow-card"><span class="step">01 · SEARCH</span><h2>Find a topic</h2><p>Search matching collected post text.</p></div><div class="workflow-card"><span class="step">02 · TRACK CHANGE</span><h2>Mutation Tracker</h2><p>Follow how a narrative changes over time.</p></div><div class="workflow-card"><span class="step">03 · COMPARE</span><h2>Cross-Platform</h2><p>Compare matching posts across platforms.</p></div></div>
+<div class="callout" id="co3">SEARCH A TOPIC · FOLLOW NARRATIVE CHANGE · COMPARE PLATFORMS</div></div></section>
+<section id="scene4" class="scene"><div class="scene-inner">
+<div class="topbar"><div class="brand">NETRA <b>INTELLIGENCE</b></div><div class="right-meta">MORE VIEWS · NEXT CHAPTERS</div></div><div class="eyebrow">THE REST OF THE WORKSPACE</div><h1 style="font-size:52px;letter-spacing:-.04em;margin:34px 0 0">From signals to context and connections</h1>
+<div class="feature-grid"><div class="feature"><span class="n">01</span><h2>Alerts</h2><p>Review notable conditions</p></div><div class="feature"><span class="n">02</span><h2>Demographics</h2><p>Explore audience estimates</p></div><div class="feature"><span class="n">03</span><h2>Network Intel</h2><p>Inspect network relationships</p></div><div class="feature"><span class="n">04</span><h2>Network Graph</h2><p>View relationships visually</p></div></div>
+<div class="callout" id="co4">NEXT · HOW NETRA PRODUCES ITS NUMBERS</div><div class="closing">NETRA INTELLIGENCE · FROM POSTS TO A CLEARER PICTURE</div></div></section>
+<div id="wash" class="wash hf-fade-through-wash" aria-hidden="true" data-composition-variables='[{"id":"wash","type":"enum","role":"style","label":"Wash","default":"ink","options":[{"value":"ink","label":"Ink"}]},{"id":"strength","type":"number","role":"style","label":"Strength","default":0.22,"min":0.1,"max":1,"step":0.01},{"id":"shape","type":"enum","role":"style","label":"Shape","default":"flat","options":[{"value":"flat","label":"Flat"}]}]'></div><div class="grain"></div>
+<audio id="music" src="assets/music/happy-beats-business-moves-vol-12-by-ende-dot-app.mp3" data-start="0" data-duration="30" data-track-index="10" data-volume="0.13" data-automation='{"version":1,"lanes":[{"target":"volume","points":[{"t":0,"v":0},{"t":1.2,"v":0.13},{"t":28.5,"v":0.13},{"t":30,"v":0}]}]}'></audio>
+<audio id="voice1" src="assets/voiceover/scene-01-final.wav" data-start="0.15" data-track-index="11" data-volume="1"></audio><audio id="voice2" src="assets/voiceover/scene-02.wav" data-start="6.65" data-track-index="12" data-volume="1"></audio><audio id="voice3" src="assets/voiceover/scene-03.wav" data-start="13.1" data-track-index="13" data-volume="1"></audio><audio id="voice4" src="assets/voiceover/scene-04.wav" data-start="21.1" data-track-index="14" data-volume="1"></audio>
+<audio id="click" src="assets/sfx/interface/click_003.ogg" data-start="13.52" data-track-index="15" data-volume="0.14"></audio>
+</div>
+<script>
+const tl=gsap.timeline({paused:true});
+const scenes=[['#scene1',0],['#scene2',6.55],['#scene3',13],['#scene4',21]];
+tl.set('#scene1',{opacity:1,scale:1},0);
+tl.fromTo('#scene2',{opacity:0,scale:1.012},{opacity:1,scale:1,duration:.34,ease:'power2.out'},6.58);
+tl.fromTo('#scene3',{opacity:0,scale:1.012},{opacity:1,scale:1,duration:.34,ease:'power2.out'},13.03);
+tl.fromTo('#scene4',{opacity:0,scale:1.012},{opacity:1,scale:1,duration:.34,ease:'power2.out'},21.03);
+tl.to('#scene1',{opacity:0,duration:.18,ease:'power1.inOut'},6.39);
+tl.to('#scene2',{opacity:0,duration:.18,ease:'power1.inOut'},12.84);
+tl.to('#scene3',{opacity:0,duration:.18,ease:'power1.inOut'},20.84);
+tl.fromTo('#scene1 .scene-inner',{scale:1.025},{scale:1,duration:4,ease:'power1.out'},0);
+tl.fromTo('#co1',{opacity:0,y:8},{opacity:1,y:0,duration:.35,ease:'power2.out'},.28);
+tl.fromTo('#co2',{opacity:0,y:8},{opacity:1,y:0,duration:.35,ease:'power2.out'},6.85);
+tl.fromTo('#co3',{opacity:0,y:8},{opacity:1,y:0,duration:.35,ease:'power2.out'},13.25);
+tl.fromTo('#co4',{opacity:0,y:8},{opacity:1,y:0,duration:.35,ease:'power2.out'},21.3);
+tl.fromTo('#sentiment-card',{scale:1},{scale:1.025,duration:.45,ease:'power2.out'},.4);
+tl.to('#sentiment-card',{scale:1,duration:.4,ease:'power2.inOut'},1.3);
+tl.fromTo('#s2sent',{outlineColor:'transparent'},{outlineColor:'#b8bbee99',duration:.3},6.85);
+tl.fromTo('#s2nar',{outlineColor:'transparent'},{outlineColor:'#b8bbee99',duration:.3},8.9);
+tl.fromTo('#search-focus',{scale:.985,borderColor:'#ffffff20'},{scale:1,borderColor:'#b8bbee99',duration:.4,ease:'power2.out'},13.25);
+tl.to('#wash',{opacity:.22,duration:.09,ease:'power1.out'},6.48).to('#wash',{opacity:0,duration:.32,ease:'power1.inOut'},6.57);
+tl.to('#wash',{opacity:.22,duration:.09,ease:'power1.out'},12.93).to('#wash',{opacity:0,duration:.32,ease:'power1.inOut'},13.02);
+tl.to('#wash',{opacity:.22,duration:.09,ease:'power1.out'},20.93).to('#wash',{opacity:0,duration:.32,ease:'power1.inOut'},21.02);
+window.__timelines=window.__timelines||{};window.__timelines.main=tl;tl.seek(0);
+</script>
+</body></html>
