@@ -1,0 +1,10 @@
+{
+  "description": "Delivers real-time social media insights across platforms with interactive analytics, alerts, and network visualizations to empower analysts and decision-makers.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

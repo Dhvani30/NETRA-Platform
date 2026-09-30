@@ -1,0 +1,12 @@
+﻿# Chapter 09 — How the numbers are made
+**Target:** 1:30
+
+| Time | Visual / component | On-screen text | Voiceover |
+|---|---|---|---|
+| 0:00–0:10 | Sanitized post card traces into MongoDB and API. | POSTS → MONGODB → API → DASHBOARD | Every dashboard result begins with stored post records. NETRA’s API reads those records from MongoDB and returns summaries for the React screens. |
+| 0:10–0:24 | Show Reddit collector and demo fallback as separate paths. | INGESTION · REDDIT COLLECTOR · DEMO DATA PATH | The repository includes a Reddit collector. The demo pipeline can also insert repeated sample records when it finds too few recent posts. Every count depends on which records are present. |
+| 0:24–0:43 | Animate text to VADER score, then label thresholds; short text abstains. | VADER COMPOUND · ≥ 0.05 POSITIVE · ≤ −0.05 NEGATIVE · OTHERWISE NEUTRAL | The enrichment script analyzes text with VADER. A compound score of at least zero point zero five is labeled positive; at or below minus zero point zero five is negative; values between are neutral. Text shorter than ten characters is marked Abstain. |
+| 0:43–0:58 | Terms become TF-IDF rows, then DBSCAN group labels. | TF-IDF · COSINE DISTANCE · DBSCAN · EPS 0.7 | For narrative clustering, text becomes TF-IDF word features, including single words and two-word phrases. DBSCAN groups texts using cosine distance with epsilon zero point seven and a minimum sample count of one. The resulting cluster id is stored with the post. |
+| 0:58–1:10 | Mongo aggregation groups sentiment and narrative name; bars count up. | GROUP BY LABEL · COUNT POSTS | Dashboard summaries use database group-and-count queries. Sentiment Distribution groups the stored top-level label, and Emerging Narratives groups the narrative name or cluster fallback. The exact stored fields determine what these charts show. |
+| 1:10–1:23 | Animate Post → Platform/Topic/Narrative/Entity/Location nodes and links. | NEO4J · POST ↔ PLATFORM / TOPIC / NARRATIVE / ENTITY | The graph builder turns selected posts into Neo4j nodes and relationships. It derives topics and narratives with keyword rules, and links recognized organization and location terms. This graph powers relationship exploration. |
+| 1:23–1:30 | End on calculation-to-screen chain; emphasize source/method note. | READ THE METHOD · THEN READ THE METRIC | A metric is only as useful as its definition and source. NETRA’s views are starting points for review, and the implementation details tell us how to interpret them. |

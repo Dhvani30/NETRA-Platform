@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { AlertTriangle, TrendingUp, Globe, Bell, BellOff, RefreshCw, Video } from 'lucide-react'; // Changed Youtube to Video
+import { AlertTriangle, TrendingUp, Globe, Bell, BellOff, RefreshCw, Video } from 'lucide-react';
+import { Badge, Button, Card } from './ui/primitives';
+import './AlertsView.css';
 
 const API_URL = 'http://localhost:8000/api/v1';
 
 const SEVERITY_STYLES = {
-  CRITICAL: { bg: 'bg-red-900/20', border: 'border-red-600', text: 'text-red-400', icon: <AlertTriangle className="w-5 h-5 text-red-500" /> },
-  WARNING: { bg: 'bg-orange-900/20', border: 'border-orange-600', text: 'text-orange-400', icon: <TrendingUp className="w-5 h-5 text-orange-500" /> },
-  INFO: { bg: 'bg-blue-900/20', border: 'border-blue-600', text: 'text-blue-400', icon: <Globe className="w-5 h-5 text-blue-500" /> }
+  CRITICAL: { tone: 'danger', icon: <AlertTriangle className="w-5 h-5" /> },
+  WARNING: { tone: 'warning', icon: <TrendingUp className="w-5 h-5" /> },
+  INFO: { tone: 'info', icon: <Globe className="w-5 h-5" /> }
 };
 
 const TYPE_ICONS = {
@@ -16,17 +18,15 @@ const TYPE_ICONS = {
   ENTITY: <Globe className="w-6 h-6" />
 };
 
-// Helper to highlight "YOUTUBE" in alert descriptions
 const highlightPlatforms = (text) => {
   if (!text) return null;
   const parts = text.split(/(YOUTUBE|X|REDDIT|TELEGRAM)/gi);
   return parts.map((part, i) => {
     if (part.toUpperCase() === 'YOUTUBE') {
-      // Using Video icon here instead of Youtube
-      return <span key={i} className="text-red-400 font-bold flex items-center gap-1 inline-flex"><Video className="w-3 h-3" />YOUTUBE</span>;
+      return <span key={i} className="alerts-view__platform alerts-view__platform--youtube"><Video className="w-3 h-3" />YOUTUBE</span>;
     }
     if (['X', 'REDDIT', 'TELEGRAM'].includes(part.toUpperCase())) {
-      return <span key={i} className="text-cyan-400 font-bold">{part}</span>;
+      return <span key={i} className="alerts-view__platform">{part}</span>;
     }
     return part;
   });
@@ -72,79 +72,69 @@ export default function AlertsView() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center p-4 rounded-lg border border-gray-800" style={{ backgroundColor: '#13131f' }}>
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-full bg-red-900/30 border border-red-600">
-            <Bell className="w-6 h-6 text-red-500 animate-pulse" />
-          </div>
+    <section className="alerts-view" aria-labelledby="alerts-heading">
+      <header className="alerts-view__header">
+        <div className="alerts-view__heading-group">
+          <span className="alerts-view__heading-icon" aria-hidden="true"><Bell /></span>
           <div>
-            <h1 className="text-2xl font-bold tracking-wider text-white">
-              INTELLIGENCE ALERTS
-            </h1>
-            <p className="text-sm text-gray-400 mt-1">
-              {alerts.length} active notifications • Auto-refreshing
-            </p>
+            <p className="alerts-view__eyebrow">Live monitoring</p>
+            <h1 className="alerts-view__title" id="alerts-heading">Intelligence <span>Alerts</span></h1>
+            <p className="alerts-view__subtitle">{alerts.length} active notifications · Auto-refreshing</p>
           </div>
         </div>
-        
-        <button 
-          onClick={() => fetchAlerts(true)}
-          disabled={refreshing}
-          className={`px-4 py-2 rounded text-white text-sm font-medium flex items-center gap-2 transition-all ${
-            refreshing ? 'bg-gray-600 cursor-wait' : 'bg-gray-700 hover:bg-gray-600'
-          }`}
-        >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /> 
-          {refreshing ? 'Scanning...' : 'Refresh'}
-        </button>
-      </div>
+        <Button variant="secondary" onClick={() => fetchAlerts(true)} disabled={refreshing} loading={refreshing} className="alerts-view__refresh">
+          <RefreshCw className={refreshing ? 'animate-spin' : ''} />
+          {refreshing ? 'Scanning…' : 'Refresh'}
+        </Button>
+      </header>
+
+      {!loading && alerts.length > 0 && (
+        <div className="alerts-view__summary" role="group" aria-label="Alert counts by severity">
+          <Badge variant="danger">Critical · {alerts.filter((alert) => alert.severity === 'CRITICAL').length}</Badge>
+          <Badge variant="warning">Warning · {alerts.filter((alert) => alert.severity === 'WARNING').length}</Badge>
+        </div>
+      )}
 
       {loading ? (
-        <div className="text-center py-20 text-gray-400">Scanning intelligence feeds...</div>
+        <Card className="alerts-view__state" role="status">
+          <RefreshCw className="alerts-view__state-icon animate-spin" />
+          <p>Scanning intelligence feeds…</p>
+        </Card>
       ) : alerts.length === 0 ? (
-        <div className="text-center py-20 text-gray-400 flex flex-col items-center">
-          <BellOff className="w-12 h-12 mb-4 opacity-50" />
+        <Card className="alerts-view__state">
+          <BellOff className="alerts-view__state-icon" />
+          <h2>No active alerts</h2>
           <p>No active alerts at this time.</p>
-        </div>
+        </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="alerts-view__list" aria-live="polite">
           {alerts.map((alert) => {
             const style = SEVERITY_STYLES[alert.severity] || SEVERITY_STYLES.INFO;
             return (
-              <div 
-                key={alert.id} 
-                className={`p-5 rounded-lg border-l-4 transition-all hover:scale-[1.01] ${style.bg} ${style.border}`}
-                style={{ backgroundColor: '#13131f' }}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-4">
-                    <div className={`p-3 rounded-lg ${style.bg} ${style.text}`}>
-                      {TYPE_ICONS[alert.type] || <AlertTriangle />}
+              <Card key={alert.id} className={`alerts-view__item alerts-view__item--${style.tone}`}>
+                <div className={`alerts-view__type-icon alerts-view__type-icon--${style.tone}`} aria-hidden="true">
+                  {TYPE_ICONS[alert.type] || <AlertTriangle />}
+                </div>
+                <div className="alerts-view__content">
+                  <div className="alerts-view__item-heading">
+                    <div className="alerts-view__title-group">
+                      <h2 className="alerts-view__item-title">{alert.title}</h2>
+                      <Badge variant={style.tone}>{alert.severity}</Badge>
                     </div>
-                    <div>
-                      <div className="flex items-center gap-3 mb-1">
-                        <h3 className="text-lg font-bold text-white">{alert.title}</h3>
-                        <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${style.bg} ${style.text} border ${style.border}`}>
-                          {alert.severity}
-                        </span>
-                      </div>
-                      <p className="text-gray-300 text-sm leading-relaxed max-w-3xl">
-                        {highlightPlatforms(alert.description)}
-                      </p>
-                      <div className="mt-2 text-xs text-gray-500 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                        Detected {formatTime(alert.timestamp)}
-                      </div>
-                    </div>
+                    <span className="alerts-view__timestamp">{formatTime(alert.timestamp)}</span>
+                  </div>
+                  <p className="alerts-view__description">{highlightPlatforms(alert.description)}</p>
+                  <div className="alerts-view__metadata">
+                    <span className={`alerts-view__severity-icon alerts-view__severity-icon--${style.tone}`} aria-hidden="true">{style.icon}</span>
+                    <span>{alert.type || 'Alert'}</span><span className="alerts-view__separator">·</span>
+                    <span>Detected {formatTime(alert.timestamp)}</span>
                   </div>
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>
       )}
-    </div>
+    </section>
   );
 }

@@ -1,0 +1,1 @@
+﻿Sentiment Distribution counts stored labels; Emerging Narratives ranks themes by post count.

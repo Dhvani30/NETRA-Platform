@@ -3,11 +3,13 @@ NETRA Intelligence Platform API (NTRO SIH 2026).
 Run: python -m uvicorn main:app --reload
 """
 from __future__ import annotations
+import os
 import json
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from bson import json_util
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from neo4j import GraphDatabase
@@ -16,15 +18,19 @@ from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.errors import PyMongoError
 
-# --- Configuration ---
-MONGO_URI = "mongodb://admin:password123@localhost:27017/?authSource=admin"
-MONGO_DB_NAME = "social_intel"
-MONGO_COLLECTION = "raw_posts"
-NEO4J_URI = "bolt://localhost:7687"
-NEO4J_USER = "neo4j"
-NEO4J_PASSWORD = "password123"
+# Load environment variables from .env file
+load_dotenv()
 
-mongo_client: MongoClient = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5_000)
+# --- Configuration (Reads from .env, falls back to safe defaults) ---
+MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://admin:admin123@cluster0.joyab6x.mongodb.net/NETRA?retryWrites=true&w=majority&authSource=admin")
+MONGO_DB_NAME = os.getenv("DB_NAME", "NETRA")
+MONGO_COLLECTION = os.getenv("COLLECTION_NAME", "raw_posts")
+NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password123")
+
+# Increased timeout to 10s to accommodate cloud database latency
+mongo_client: MongoClient = MongoClient(MONGO_URI, serverSelectionTimeoutMS=10_000)
 raw_posts: Collection = mongo_client[MONGO_DB_NAME][MONGO_COLLECTION]
 neo4j_driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
 
@@ -77,7 +83,9 @@ def health():
     try:
         mongo_client.admin.command("ping")
         with neo4j_driver.session() as session: session.run("RETURN 1")
-    except Exception: raise HTTPException(status_code=503, detail="Database unreachable")
+    except Exception as e: 
+        print(f"Health check failed: {e}")
+        raise HTTPException(status_code=503, detail="Database unreachable")
     return {"status": "ok"}
 
 @app.get("/api/v1/messages")
@@ -85,7 +93,8 @@ def get_messages(limit: int = Query(20, ge=1, le=100)):
     try:
         cursor = raw_posts.find({}, {"_id": 0}).sort("published_at", -1).limit(limit)
         return {"messages": _mongo_documents_to_json(list(cursor))}
-    except PyMongoError: raise HTTPException(status_code=500, detail="DB Error")
+    except PyMongoError as e: 
+        raise HTTPException(status_code=500, detail=f"DB Error: {str(e)}")
 
 @app.get("/api/v1/analytics/sentiment")
 def get_sentiment():
@@ -93,7 +102,8 @@ def get_sentiment():
         pipeline = [{"$group": {"_id": "$sentiment_label", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}]
         results = list(raw_posts.aggregate(pipeline))
         return {"sentiment_breakdown": [{"label": r["_id"] if r["_id"] else "Neutral", "count": r["count"]} for r in results]}
-    except PyMongoError: raise HTTPException(status_code=500, detail="DB Error")
+    except PyMongoError as e: 
+        raise HTTPException(status_code=500, detail=f"DB Error: {str(e)}")
 
 @app.get("/api/v1/analytics/narratives")
 def get_narratives():
@@ -104,12 +114,15 @@ def get_narratives():
         ]
         results = list(raw_posts.aggregate(pipeline))
         return {"clusters": [{"name": r["_id"] if r["_id"] else "Uncategorized", "count": r["count"]} for r in results]}
-    except PyMongoError: raise HTTPException(status_code=500, detail="DB Error")
+    except PyMongoError as e: 
+        raise HTTPException(status_code=500, detail=f"DB Error: {str(e)}")
 
 @app.get("/api/v1/graph/data")
 def get_graph():
-    try: return _fetch_graph_payload()
-    except Exception: raise HTTPException(status_code=500, detail="Graph Error")
+    try: 
+        return _fetch_graph_payload()
+    except Exception as e: 
+        raise HTTPException(status_code=500, detail=f"Graph Error: {str(e)}")
 
 @app.get("/api/v1/search")
 def search_messages(q: str = Query(..., min_length=1)):
@@ -136,7 +149,8 @@ def search_messages(q: str = Query(..., min_length=1)):
             "provenance": provenance,
             "posts": documents
         }
-    except PyMongoError: raise HTTPException(status_code=500, detail="Search failed")
+    except PyMongoError as e: 
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 @app.get("/api/v1/analytics/mutation")
 def get_narrative_mutation(narrative: str = Query(..., description="Narrative name to track")):
@@ -209,7 +223,7 @@ def get_narrative_mutation(narrative: str = Query(..., description="Narrative na
         }
 
     except PyMongoError as exc:
-        raise HTTPException(status_code=500, detail="Failed to load mutation data.") from exc
+        raise HTTPException(status_code=500, detail=f"Failed to load mutation data: {str(exc)}") from exc
 
 @app.get("/api/v1/analytics/correlation")
 def get_cross_platform_correlation(q: str = Query(..., description="Topic to track across platforms")):
@@ -250,7 +264,7 @@ def get_cross_platform_correlation(q: str = Query(..., description="Topic to tra
         return {"query": q, "flow": flow, "total_posts": len(posts)}
 
     except PyMongoError as exc:
-        raise HTTPException(status_code=500, detail="Correlation failed.") from exc
+        raise HTTPException(status_code=500, detail=f"Correlation failed: {str(exc)}") from exc
 
 @app.get("/api/v1/analytics/alerts")
 def get_alerts():

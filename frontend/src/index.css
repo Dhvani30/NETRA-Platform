@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,4 +6,336 @@
 body {
   background-color: #0a0a0f;
   color: #ffffff;
+}
+
+:root {
+  color-scheme: dark;
+  --netra-bg: #08091a;
+  --netra-glass: rgba(255, 255, 255, 0.04);
+  --netra-border: rgba(255, 255, 255, 0.1);
+  --netra-accent: #9a9ee8;
+  --netra-text: #f2f3fa;
+  --netra-muted: #8e92b0;
+  --netra-subtle: #5b5f7a;
+}
+body { background: var(--netra-bg); color: var(--netra-text); font-family: 'Space Grotesk', system-ui, sans-serif; }
+.netra-app { background: radial-gradient(ellipse 900px 600px at 90% 0%, rgba(154,158,232,.08), transparent 58%), var(--netra-bg); }
+.netra-header { gap: 24px; padding: 0 0 18px; border-bottom: 1px solid var(--netra-border); }
+.netra-title { margin: 0; color: var(--netra-text); font-size: 19px; font-weight: 500; letter-spacing: .08em; white-space: nowrap; }
+.netra-title span { color: var(--netra-accent); font-weight: 300; }
+.netra-toolbar { justify-content: flex-end; }
+.netra-nav, .netra-refresh { border: 1px solid transparent; border-radius: 999px; background: transparent; padding: 8px 12px; color: var(--netra-subtle); font: 500 12px 'Space Grotesk', sans-serif; cursor: pointer; transition: .15s ease; white-space: nowrap; }
+.netra-nav:hover, .netra-refresh:hover { color: var(--netra-text); background: rgba(255,255,255,.04); }
+.netra-nav.is-active { color: var(--netra-text); border-color: rgba(154,158,232,.22); background: rgba(154,158,232,.1); }
+.netra-refresh { display: inline-flex; border-color: var(--netra-border); color: var(--netra-muted); }
+.netra-refresh:disabled { cursor: wait; opacity: .65; }
+.netra-updated { color: var(--netra-subtle); font: 10px 'JetBrains Mono', monospace; white-space: nowrap; }
+.netra-search-wrap { max-width: 760px; }
+.netra-search-icon { color: var(--netra-subtle); }
+@media (max-width: 900px) { .netra-header { align-items: flex-start; flex-direction: column; } .netra-toolbar { justify-content: flex-start; } }
+
+/* Design-source tokens. These are additive and intentionally not applied globally. */
+:root {
+  /* Palette: the exported design defines a dark theme only. */
+  --ds-color-bg: #08091a;
+  --ds-color-bg-mid: #0d0e22;
+  --ds-color-bg-elevated: #11122a;
+  --ds-color-glass: rgba(255, 255, 255, 0.05);
+  --ds-color-glass-hover: rgba(255, 255, 255, 0.08);
+  --ds-color-glass-border: rgba(255, 255, 255, 0.14);
+  --ds-color-glass-bright: rgba(255, 255, 255, 0.22);
+  --ds-color-glass-inner: rgba(255, 255, 255, 0.07);
+  --ds-color-glass-float: rgba(255, 255, 255, 0.06);
+  --ds-color-accent: #9a9ee8;
+  --ds-color-accent-dim: #7b7fc4;
+  --ds-color-accent-bright: #b8bbee;
+  --ds-color-accent-faint: rgba(154, 158, 232, 0.12);
+  --ds-color-text-1: #f2f3fa;
+  --ds-color-text-2: #8e92b0;
+  --ds-color-text-3: #8e92b0;
+  --ds-color-border: rgba(255, 255, 255, 0.1);
+  --ds-color-border-bright: rgba(255, 255, 255, 0.2);
+  --ds-color-red-muted: #c07070;
+  --ds-color-amber-muted: #c09060;
+  --ds-color-green-muted: #70a888;
+  --ds-color-blue-muted: #7090cc;
+  --ds-color-metal-light: #e6e8f2;
+  --ds-color-metal-mid: #9ba0b8;
+  --ds-color-metal-dark: #5a5e78;
+  --ds-color-metal-sheen: #c9cce0;
+  --ds-color-on-accent: #0b0c14;
+  --ds-color-chart-muted-1: #6b6faa;
+  --ds-color-chart-muted-2: #b0b4e8;
+  --ds-color-chart-muted-3: #8090cc;
+  --ds-color-chart-muted-4: #c0c4f0;
+
+  /* Typography */
+  --ds-font-sans: 'Space Grotesk';
+  --ds-font-mono: 'JetBrains Mono';
+  --ds-type-7: 7px;
+  --ds-type-8: 8px;
+  --ds-type-9: 9px;
+  --ds-type-10: 10px;
+  --ds-type-11: 11px;
+  --ds-type-11-5: 11.5px;
+  --ds-type-12: 12px;
+  --ds-type-12-5: 12.5px;
+  --ds-type-13: 13px;
+  --ds-type-14: 14px;
+  --ds-type-15: 15px;
+  --ds-type-16: 16px;
+  --ds-type-18: 18px;
+  --ds-type-20: 20px;
+  --ds-type-22: 22px;
+  --ds-type-26: 26px;
+  --ds-type-28: 28px;
+  --ds-type-30: 30px;
+  --ds-type-36: 36px;
+  --ds-type-48: 48px;
+  --ds-weight-light: 300;
+  --ds-weight-regular: 400;
+  --ds-weight-medium: 500;
+  --ds-weight-semibold: 600;
+  --ds-weight-bold: 700;
+  --ds-leading-tight: 1;
+  --ds-leading-snug: 1.1;
+  --ds-leading-normal: 1.4;
+  --ds-leading-relaxed: 1.5;
+  --ds-leading-readable: 1.55;
+  --ds-leading-comfortable: 1.6;
+  --ds-leading-loose: 1.7;
+  --ds-tracking-tight: -0.01em;
+  --ds-tracking-display: 0.08em;
+  --ds-tracking-label: 0.1em;
+  --ds-tracking-wide: 0.12em;
+
+  /* Spacing values observed in the exported utility and inline styles (px). */
+  --ds-space-1: 1px;
+  --ds-space-2: 2px;
+  --ds-space-3: 3px;
+  --ds-space-4: 4px;
+  --ds-space-5: 5px;
+  --ds-space-6: 6px;
+  --ds-space-7: 7px;
+  --ds-space-8: 8px;
+  --ds-space-10: 10px;
+  --ds-space-12: 12px;
+  --ds-space-14: 14px;
+  --ds-space-16: 16px;
+  --ds-space-18: 18px;
+  --ds-space-20: 20px;
+  --ds-space-24: 24px;
+  --ds-space-28: 28px;
+  --ds-space-32: 32px;
+  --ds-space-36: 36px;
+  --ds-space-40: 40px;
+  --ds-space-48: 48px;
+  --ds-space-52: 52px;
+  --ds-space-56: 56px;
+  --ds-space-64: 64px;
+  --ds-space-72: 72px;
+  --ds-space-80: 80px;
+  --ds-space-88: 88px;
+  --ds-space-100: 100px;
+  /* Shape, depth and effects */
+  --ds-radius-xs: 6px;
+  --ds-radius-sm: 8px;
+  --ds-radius-md: 12px;
+  --ds-radius-nav: 10px;
+  --ds-radius-card: 16px;
+  --ds-radius-pill: 999px;
+  --ds-blur-glass: 24px;
+  --ds-blur-float: 32px;
+  --ds-shadow-glass: inset 0 1px 0 rgba(255,255,255,.1), inset 1px 0 0 rgba(255,255,255,.05), 0 20px 40px rgba(0,0,0,.38);
+  --ds-shadow-glass-hover: inset 0 1px 0 rgba(255,255,255,.14), inset 1px 0 0 rgba(255,255,255,.07), 0 24px 48px rgba(0,0,0,.45);
+  --ds-shadow-float: inset 0 1px 0 rgba(255,255,255,.14), 0 12px 32px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.3);
+  --ds-shadow-metal-button: 0 0 28px rgba(154,158,232,.18), inset 0 1px 0 rgba(255,255,255,.4);
+
+  /* Design breakpoints: Tailwind defaults plus the two CSS media-query widths. */
+  --ds-breakpoint-sm: 640px;
+  --ds-breakpoint-md: 768px;
+  --ds-breakpoint-lg: 1024px;
+  --ds-breakpoint-xl: 1280px;
+  --ds-breakpoint-2xl: 1536px;
+  --ds-breakpoint-tablet: 900px;
+  --ds-breakpoint-mobile: 600px;
+
+  /* Semantic aliases to the palette above; no light palette exists in the export. */
+  --ds-color-primary: var(--ds-color-accent);
+  --ds-color-secondary: var(--ds-color-blue-muted);
+  --ds-color-neutral-900: var(--ds-color-bg);
+  --ds-color-neutral-800: var(--ds-color-bg-mid);
+  --ds-color-neutral-700: var(--ds-color-bg-elevated);
+  --ds-color-neutral-500: var(--ds-color-text-2);
+  --ds-color-neutral-400: var(--ds-color-text-3);
+  --ds-color-success: var(--ds-color-green-muted);
+  --ds-color-warning: var(--ds-color-amber-muted);
+  --ds-color-danger: var(--ds-color-red-muted);
+  --ds-color-info: var(--ds-color-blue-muted);
+}
+
+/* Responsive application shell: layout-only; screen state and callbacks stay in App.jsx. */
+.netra-app {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  width: 100%;
+  height: 100vh;
+  min-height: 100vh;
+  padding: 0;
+  overflow: hidden;
+}
+.netra-header {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
+  margin: 0;
+  padding: 0 var(--ds-space-2);
+  border-right: var(--ds-space-1) solid var(--ds-color-border);
+  border-bottom: 0;
+  background: transparent;
+}
+.netra-title {
+  padding: var(--ds-space-18) var(--ds-space-2) var(--ds-space-14);
+  font-size: var(--ds-type-14);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-tight);
+}
+.netra-toolbar {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: var(--ds-space-4);
+  padding: var(--ds-space-2) 0;
+  overflow-y: auto;
+}
+.netra-toolbar > .ds-button--nav {
+  flex: 0 0 auto;
+  justify-content: flex-start;
+  width: 100%;
+  border-radius: var(--ds-radius-nav);
+  text-align: left;
+}
+.netra-toolbar > .ds-button--secondary {
+  flex: 0 0 auto;
+  justify-content: flex-start;
+  width: 100%;
+  margin-top: auto;
+}
+.netra-toolbar > .ds-badge {
+  align-self: flex-start;
+  margin: var(--ds-space-2) var(--ds-space-1);
+}
+.netra-header::after {
+  content: 'Support';
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-2);
+  min-height: var(--ds-space-40);
+  margin: var(--ds-space-2) 0 var(--ds-space-4);
+  border: var(--ds-space-1) solid var(--ds-color-glass-border);
+  border-radius: var(--ds-radius-pill);
+  color: var(--ds-color-text-2);
+  background: var(--ds-color-glass);
+  font-size: var(--ds-type-11);
+}
+.netra-search-wrap {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  padding: var(--ds-space-10) var(--ds-space-20);
+  border-bottom: var(--ds-space-1) solid var(--ds-color-border);
+}
+.netra-search-wrap > .relative {
+  width: min(100%, 420px);
+}
+.netra-app > :not(.netra-header):not(.netra-search-wrap) {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--ds-space-7);
+}
+.netra-app > .grid {
+  align-content: start;
+}
+
+@media (max-width: 900px) {
+  .netra-app {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+  .netra-header {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--ds-space-3);
+    padding: var(--ds-space-2) var(--ds-space-4);
+    border-right: 0;
+    border-bottom: var(--ds-space-1) solid var(--ds-color-border);
+  }
+  .netra-title {
+    flex: 0 0 auto;
+    padding: 0;
+    font-size: var(--ds-type-13);
+  }
+  .netra-toolbar {
+    min-width: 0;
+    flex: 1;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--ds-space-4);
+    padding: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .netra-toolbar > .ds-button--nav {
+    width: auto;
+    min-height: var(--ds-space-32);
+  }
+  .netra-toolbar > .ds-button--secondary {
+    width: auto;
+    margin: 0 0 0 auto;
+  }
+  .netra-toolbar > .ds-badge {
+    align-self: center;
+    margin: 0;
+  }
+  .netra-header::after { display: none; }
+  .netra-search-wrap {
+    grid-column: 1;
+    grid-row: 2;
+    padding: var(--ds-space-2) var(--ds-space-4);
+  }
+  .netra-search-wrap > .relative { width: min(100%, 560px); }
+  .netra-app > :not(.netra-header):not(.netra-search-wrap) {
+    grid-column: 1;
+    grid-row: 3;
+    padding: var(--ds-space-6) var(--ds-space-5);
+  }
+}
+
+@media (max-width: 600px) {
+  .netra-header { gap: var(--ds-space-2); padding-right: var(--ds-space-2); padding-left: var(--ds-space-2); }
+  .netra-title { font-size: var(--ds-type-12); }
+  .netra-toolbar > .ds-button--nav { padding-right: var(--ds-space-2); padding-left: var(--ds-space-2); }
+  .netra-app > :not(.netra-header):not(.netra-search-wrap) { padding: var(--ds-space-4) var(--ds-space-3); }
 }

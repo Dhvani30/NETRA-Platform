@@ -9,9 +9,11 @@ import CrossPlatformView from './components/CrossPlatformView';
 import AlertsView from './components/AlertsView';
 import DemographicsView from './components/DemographicsView';
 import NetworkIntelligenceView from './components/NetworkIntelligenceView';
+import { Badge, Button, Card, Input } from './components/ui/primitives';
+import './components/AnalyticsView.css';
 
 const API_URL = 'http://localhost:8000/api/v1';
-const SENTIMENT_COLORS = { Positive: '#10b981', Negative: '#ef4444', Neutral: '#f59e0b', ABSTAIN: '#6b7280' };
+const SENTIMENT_COLORS = { Positive: 'var(--ds-color-green-muted)', Negative: 'var(--ds-color-red-muted)', Neutral: 'var(--ds-color-amber-muted)', ABSTAIN: 'var(--ds-color-text-3)' };
 
 function App() {
   const [activeTab, setActiveTab] = useState('analytics');
@@ -86,64 +88,57 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen p-6 font-sans" style={{ backgroundColor: '#0a0a0f', color: '#ffffff' }}>
+    <div className="netra-app min-h-screen p-6">
       {/* Header */}
-      <header className="mb-8 flex justify-between items-center border-b border-gray-700 pb-4">
-        <h1 className="text-3xl font-bold tracking-wider" style={{ color: '#00f0ff' }}>NETRA INTELLIGENCE DASHBOARD</h1>
+      <header className="netra-header mb-8 flex justify-between items-center">
+        <h1 className="netra-title">NETRA <span>INTELLIGENCE</span></h1>
         {!investigationData && (
-          <div className="flex gap-3 items-center flex-wrap">
-            <button onClick={() => setActiveTab('analytics')} className={`px-4 py-2 rounded transition-colors text-sm font-medium ${activeTab === 'analytics' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+          <div className="netra-toolbar flex gap-2 items-center flex-wrap">
+            <Button variant="nav" active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')}>
               Analytics
-            </button>
-            <button onClick={() => setActiveTab('mutation')} className={`px-4 py-2 rounded transition-colors text-sm font-medium ${activeTab === 'mutation' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+            </Button>
+            <Button variant="nav" active={activeTab === 'mutation'} onClick={() => setActiveTab('mutation')}>
               Mutation Tracker
-            </button>
-            <button onClick={() => setActiveTab('correlation')} className={`px-4 py-2 rounded transition-colors text-sm font-medium ${activeTab === 'correlation' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+            </Button>
+            <Button variant="nav" active={activeTab === 'correlation'} onClick={() => setActiveTab('correlation')}>
               Cross-Platform
-            </button>
-            <button onClick={() => setActiveTab('alerts')} className={`px-4 py-2 rounded transition-colors text-sm font-medium ${activeTab === 'alerts' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+            </Button>
+            <Button variant="nav" active={activeTab === 'alerts'} onClick={() => setActiveTab('alerts')}>
               Alerts
-            </button>
-            <button onClick={() => setActiveTab('demographics')} className={`px-4 py-2 rounded transition-colors text-sm font-medium ${activeTab === 'demographics' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+            </Button>
+            <Button variant="nav" active={activeTab === 'demographics'} onClick={() => setActiveTab('demographics')}>
               Demographics
-            </button>
-            <button onClick={() => setActiveTab('network_intel')} className={`px-4 py-2 rounded transition-colors text-sm font-medium ${activeTab === 'network_intel' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+            </Button>
+            <Button variant="nav" active={activeTab === 'network_intel'} onClick={() => setActiveTab('network_intel')}>
               Network Intel
-            </button>
-            <button onClick={() => setActiveTab('graph')} className={`px-4 py-2 rounded transition-colors text-sm font-medium ${activeTab === 'graph' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+            </Button>
+            <Button variant="nav" active={activeTab === 'graph'} onClick={() => setActiveTab('graph')}>
               Network Graph
-            </button>
+            </Button>
             
             {/* 🔄 FIXED REFRESH BUTTON */}
-            <button 
-              onClick={() => { 
-                fetchData(); 
-                setRefreshKey(prev => prev + 1);
-              }} 
-              disabled={loading} 
-              className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 flex items-center gap-2 text-gray-300 transition-colors text-sm font-medium"
-            >
+            <Button variant="secondary" loading={loading} className="flex items-center gap-2" onClick={() => { fetchData(); setRefreshKey(prev => prev + 1); }}>
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-            </button>
+            </Button>
             
-            {lastUpdated && <span className="text-xs text-gray-400 ml-2">Last Updated: {lastUpdated.toLocaleTimeString()}</span>}
+            {lastUpdated && <Badge>Last Updated: {lastUpdated.toLocaleTimeString()}</Badge>}
           </div>
         )}
       </header>
 
       {/* Search Bar */}
       {!investigationData && (
-        <div className="mb-6">
+        <div className="netra-search-wrap mb-6">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input 
+            <Search className="netra-search-icon absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5" />
+            <Input
               type="text" 
-              placeholder="Investigate topic, entity, or narrative... (press Enter)" 
+              placeholder="Investigate topic, entity, or narrative... (press Enter)"
+              aria-label="Search investigations"
               value={searchQuery} 
               onChange={(e) => setSearchQuery(e.target.value)} 
               onKeyDown={handleSearch} 
-              className="w-full pl-10 pr-4 py-3 rounded-lg bg-gray-800 border border-gray-700 text-white placeholder-gray-400 focus:outline-none focus:border-cyan-500 transition-colors" 
-              style={{ backgroundColor: '#13131f' }} 
+              className="ds-input--search w-full"
             />
           </div>
         </div>
@@ -155,45 +150,77 @@ function App() {
       ) : (
         <>
           {activeTab === 'analytics' && (
-            <div className="grid grid-cols-3 gap-8">
-              <div className="p-6 rounded-lg shadow-lg" style={{ backgroundColor: '#13131f' }}>
-                <h2 className="text-xl font-bold mb-4">Sentiment Distribution</h2>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie data={sentimentData} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={100} label>
-                      {sentimentData.map((entry, index) => <Cell key={`cell-${index}`} fill={SENTIMENT_COLORS[entry.label] || '#888888'} />)}
-                    </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: '#13131f', border: '1px solid #333' }} itemStyle={{ color: '#fff' }} />
-                    <Legend wrapperStyle={{ color: '#fff' }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="p-6 rounded-lg shadow-lg" style={{ backgroundColor: '#13131f' }}>
-                <h2 className="text-xl font-bold mb-4">Emerging Narratives</h2>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={narrativeData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                    <XAxis type="number" stroke="#888" />
-                    <YAxis dataKey="name" type="category" width={100} stroke="#888" />
-                    <Tooltip contentStyle={{ backgroundColor: '#13131f', border: '1px solid #333' }} itemStyle={{ color: '#fff' }} />
-                    <Bar dataKey="count" fill="#00f0ff" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="p-6 rounded-lg shadow-lg" style={{ backgroundColor: '#13131f' }}>
-                <h2 className="text-xl font-bold mb-4">Live Intelligence Feed</h2>
-                <div className="space-y-3 max-h-[300px] overflow-y-auto">
-                  {messages.length === 0 ? <p className="text-gray-400 text-center py-8">No messages available</p> : messages.map((msg, i) => (
-                    <div key={i} className="p-3 rounded border-l-4" style={{ backgroundColor: '#0a0a0f', borderColor: '#00f0ff' }}>
-                      <div className="flex items-center gap-2 text-sm text-gray-400 mb-1">
-                        {getPlatformIcon(msg.platform)} <span>{msg.platform?.toUpperCase() || 'UNKNOWN'}</span> <span>•</span> <span>{getRelativeTime(msg.published_at)}</span>
+            <section className="analytics-view" aria-labelledby="analytics-heading">
+              <header className="analytics-view__header">
+                <p className="analytics-view__eyebrow">Dashboard</p>
+                <h1 id="analytics-heading" className="analytics-view__title">Analytics</h1>
+              </header>
+              {loading && !lastUpdated ? (
+                <Card className="analytics-view__loading" role="status">
+                  <RefreshCw className="analytics-view__loading-icon animate-spin" />
+                  <p>Loading analytics…</p>
+                </Card>
+              ) : (
+                <div className="analytics-view__grid">
+                  <Card className="analytics-view__card">
+                    <header className="analytics-view__card-header"><h2>Sentiment Distribution</h2></header>
+                    {sentimentData.length === 0 ? (
+                      <div className="analytics-view__empty"><p>No sentiment data available.</p></div>
+                    ) : (
+                      <div className="analytics-view__chart">
+                        <ResponsiveContainer width="100%" height={240}>
+                          <PieChart>
+                            <Pie data={sentimentData} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={100} label>
+                              {sentimentData.map((entry, index) => <Cell key={"cell-" + index} fill={SENTIMENT_COLORS[entry.label] || 'var(--ds-color-text-3)'} />)}
+                            </Pie>
+                            <Tooltip contentStyle={{ backgroundColor: 'var(--ds-color-bg-elevated)', border: '1px solid var(--ds-color-glass-border)', borderRadius: 'var(--ds-radius-md)', color: 'var(--ds-color-text-1)' }} itemStyle={{ color: 'var(--ds-color-text-1)' }} />
+                            <Legend wrapperStyle={{ color: 'var(--ds-color-text-2)' }} />
+                          </PieChart>
+                        </ResponsiveContainer>
                       </div>
-                      <p className="text-white mt-1 text-sm">{msg.text_content?.substring(0, 150) || 'No content'}...</p>
-                    </div>
-                  ))}
+                    )}
+                  </Card>
+                  <Card className="analytics-view__card">
+                    <header className="analytics-view__card-header"><h2>Emerging Narratives</h2></header>
+                    {narrativeData.length === 0 ? (
+                      <div className="analytics-view__empty"><p>No narrative data available.</p></div>
+                    ) : (
+                      <div className="analytics-view__chart">
+                        <ResponsiveContainer width="100%" height={240}>
+                          <BarChart data={narrativeData} layout="vertical">
+                            <CartesianGrid strokeDasharray="3 3" stroke="var(--ds-color-glass-border)" />
+                            <XAxis type="number" stroke="var(--ds-color-text-3)" tick={{ fill: 'var(--ds-color-text-3)' }} />
+                            <YAxis dataKey="name" type="category" width={100} stroke="var(--ds-color-text-3)" tick={{ fill: 'var(--ds-color-text-2)' }} />
+                            <Tooltip contentStyle={{ backgroundColor: 'var(--ds-color-bg-elevated)', border: '1px solid var(--ds-color-glass-border)', borderRadius: 'var(--ds-radius-md)', color: 'var(--ds-color-text-1)' }} itemStyle={{ color: 'var(--ds-color-text-1)' }} />
+                            <Bar dataKey="count" fill="var(--ds-color-accent)" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                  </Card>
+                  <Card className="analytics-view__card analytics-view__feed-card">
+                    <header className="analytics-view__card-header"><h2>Live Intelligence Feed</h2></header>
+                    {messages.length === 0 ? (
+                      <div className="analytics-view__empty"><p>No messages available.</p></div>
+                    ) : (
+                      <div className="analytics-view__feed">
+                        {messages.map((msg, i) => (
+                          <article key={i} className="analytics-view__message">
+                            <div className="analytics-view__message-meta">
+                              <span className="analytics-view__platform-icon">{getPlatformIcon(msg.platform)}</span>
+                              <span className="analytics-view__platform">{msg.platform?.toUpperCase() || 'UNKNOWN'}</span>
+                              <span className="analytics-view__separator">·</span>
+                              <span className="analytics-view__time">{getRelativeTime(msg.published_at)}</span>
+                            </div>
+                            <p className="analytics-view__message-text">{msg.text_content?.substring(0, 150) || 'No content'}...</p>
+                          </article>
+                        ))}
+                      </div>
+                    )}
+                  </Card>
                 </div>
-              </div>
-            </div>
+              )}
+            </section>
           )}
           
           {/* 🔄 PASSING REFRESH KEY TO FORCE REMOUNT */}

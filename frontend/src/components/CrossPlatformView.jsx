@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Share2, MessageSquare, Globe, ArrowRight, Activity, Video } from 'lucide-react'; // Changed Youtube to Video
+import { Share2, MessageSquare, Globe, Activity, Video } from 'lucide-react';
+import { Badge, Button, Card, Input } from './ui/primitives';
+import './CrossPlatformView.css';
 
 const API_URL = 'http://localhost:8000/api/v1';
 
@@ -13,11 +15,11 @@ const PLATFORM_ICONS = {
 };
 
 const PLATFORM_COLORS = {
-  X: '#3b82f6',       // Blue
-  REDDIT: '#ef4444',  // Red
-  YOUTUBE: '#ff0000', // YouTube Red
-  TELEGRAM: '#0088cc',// Telegram Blue
-  UNKNOWN: '#6b7280'  // Gray
+  X: 'var(--ds-color-accent-bright)',       // Blue
+  REDDIT: 'var(--ds-color-accent-bright)',  // Red
+  YOUTUBE: 'var(--ds-color-accent-bright)', // YouTube Red
+  TELEGRAM: 'var(--ds-color-accent-bright)',// Telegram Blue
+  UNKNOWN: 'var(--ds-color-text-3)'  // Gray
 };
 
 export default function CrossPlatformView() {
@@ -49,127 +51,76 @@ export default function CrossPlatformView() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header & Search */}
-      <div className="flex justify-between items-center p-4 rounded-lg border border-gray-800" style={{ backgroundColor: '#13131f' }}>
-        <div>
-          <h1 className="text-2xl font-bold tracking-wider" style={{ color: '#00f0ff' }}>
-            CROSS-PLATFORM CORRELATION
-          </h1>
-          <p className="text-sm text-gray-400 mt-1">Track how intelligence spreads across social networks</p>
+    <section className="cross-platform-view" aria-labelledby="correlation-heading" aria-busy={loading}>
+      <header className="cross-platform-view__header">
+        <div className="cross-platform-view__heading">
+          <p className="cross-platform-view__eyebrow">Cross-Platform</p>
+          <h1 id="correlation-heading">Correlation</h1>
+          <p>Track how intelligence spreads across social networks.</p>
         </div>
-        <div className="flex gap-2">
-          <input 
-            type="text" 
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && fetchCorrelation(query)}
-            className="px-4 py-2 rounded bg-gray-800 border border-gray-700 text-white focus:outline-none focus:border-cyan-500"
-            placeholder="Enter topic..."
-          />
-          <button 
-            onClick={() => fetchCorrelation(query)}
-            className="px-4 py-2 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-medium"
-          >
-            Track
-          </button>
+        <div className="cross-platform-view__search">
+          <Input type="text" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && fetchCorrelation(query)} className="cross-platform-view__input" placeholder="Enter topic..." aria-label="Topic to track" />
+          <Button variant="primary" onClick={() => fetchCorrelation(query)}>Track</Button>
         </div>
-      </div>
+      </header>
 
       {loading ? (
-        <div className="text-center py-20 text-gray-400">Analyzing cross-platform spread...</div>
+        <Card className="cross-platform-view__state" role="status">
+          <Activity className="cross-platform-view__state-icon animate-spin" />
+          <p>Analyzing cross-platform spread…</p>
+        </Card>
       ) : !data || data.flow.length === 0 ? (
-        <div className="text-center py-20 text-gray-400">No cross-platform data found for this topic.</div>
+        <Card className="cross-platform-view__state">
+          <Globe className="cross-platform-view__state-icon" />
+          <h2>No cross-platform data found</h2>
+          <p>Try another topic to view its platform spread.</p>
+        </Card>
       ) : (
         <>
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="p-4 rounded-lg border border-gray-800" style={{ backgroundColor: '#13131f' }}>
-              <div className="text-sm text-gray-400 mb-1">Topic Tracked</div>
-              <div className="text-xl font-bold text-white capitalize">{data.query}</div>
-            </div>
-            <div className="p-4 rounded-lg border border-gray-800" style={{ backgroundColor: '#13131f' }}>
-              <div className="text-sm text-gray-400 mb-1">Platforms Involved</div>
-              <div className="text-xl font-bold text-cyan-400">{data.flow.length}</div>
-            </div>
-            <div className="p-4 rounded-lg border border-gray-800" style={{ backgroundColor: '#13131f' }}>
-              <div className="text-sm text-gray-400 mb-1">Total Observations</div>
-              <div className="text-xl font-bold text-emerald-400">{data.total_posts}</div>
-            </div>
+          <div className="cross-platform-view__stats">
+            <Card className="cross-platform-view__stat"><span className="cross-platform-view__stat-label">Topic Tracked</span><strong className="cross-platform-view__topic">{data.query}</strong></Card>
+            <Card className="cross-platform-view__stat"><span className="cross-platform-view__stat-label">Platforms Involved</span><strong className="cross-platform-view__stat-accent">{data.flow.length}</strong></Card>
+            <Card className="cross-platform-view__stat"><span className="cross-platform-view__stat-label">Total Observations</span><strong className="cross-platform-view__stat-accent">{data.total_posts}</strong></Card>
           </div>
 
-          {/* Timeline Flow */}
-          <div className="p-6 rounded-lg border border-gray-800" style={{ backgroundColor: '#13131f' }}>
-            <h2 className="text-lg font-bold mb-6 flex items-center gap-2" style={{ color: '#00f0ff' }}>
-              <Activity className="w-5 h-5" />
-              INTELLIGENCE SPREAD TIMELINE
-            </h2>
-            
-            <div className="relative">
-              {/* Connecting Line */}
-              <div className="absolute top-8 left-0 right-0 h-0.5 bg-gray-700 z-0"></div>
-              
-              <div className="flex justify-between relative z-10">
-                {data.flow.map((item, index) => (
-                  <div key={index} className="flex flex-col items-center w-1/4 px-2">
-                    {/* Platform Icon Node */}
-                    <div 
-                      className="w-16 h-16 rounded-full flex items-center justify-center border-4 mb-4 shadow-lg"
-                      style={{ 
-                        backgroundColor: '#0a0a0f', 
-                        borderColor: PLATFORM_COLORS[item.platform] || '#6b7280',
-                        color: PLATFORM_COLORS[item.platform] || '#6b7280'
-                      }}
-                    >
-                      {PLATFORM_ICONS[item.platform] || PLATFORM_ICONS.UNKNOWN}
-                    </div>
-                    
-                    {/* Platform Name */}
-                    <div className="text-sm font-bold text-white mb-1">{item.platform}</div>
-                    
-                    {/* Time */}
-                    <div className="text-xs text-cyan-400 mb-2">{formatTime(item.first_seen)}</div>
-                    
-                    {/* Volume */}
-                    <div className="text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded-full">
-                      {item.post_count} posts
-                    </div>
-
-                    {/* Sample Text (Tooltip style) */}
-                    <div className="mt-3 text-xs text-gray-500 text-center italic px-2 hidden md:block">
-                      "{item.sample_text}"
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Detailed Evidence List */}
-          <div className="p-6 rounded-lg border border-gray-800" style={{ backgroundColor: '#13131f' }}>
-            <h2 className="text-lg font-bold mb-4" style={{ color: '#00f0ff' }}>PLATFORM BREAKDOWN</h2>
-            <div className="space-y-3">
+          <Card className="cross-platform-view__panel">
+            <header className="cross-platform-view__panel-heading">
+              <div className="cross-platform-view__panel-title"><Activity aria-hidden="true" /><h2>Intelligence Spread Timeline</h2></div>
+              <Badge variant="accent">{data.query}</Badge>
+            </header>
+            <div className="cross-platform-view__flow">
               {data.flow.map((item, index) => (
-                <div key={index} className="flex items-center justify-between p-4 rounded border-l-4" style={{ backgroundColor: '#0a0a0f', borderColor: PLATFORM_COLORS[item.platform] }}>
-                  <div className="flex items-center gap-4">
-                    <div style={{ color: PLATFORM_COLORS[item.platform] }}>
-                      {PLATFORM_ICONS[item.platform]}
-                    </div>
-                    <div>
-                      <div className="font-bold text-white">{item.platform}</div>
-                      <div className="text-xs text-gray-400">First detected: {formatTime(item.first_seen)}</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-bold text-cyan-400">{item.post_count} posts</div>
-                    <div className="text-xs text-gray-500 max-w-xs truncate">{item.sample_text}</div>
-                  </div>
-                </div>
+                <article key={index} className="cross-platform-view__flow-step" style={{ '--platform-tone': PLATFORM_COLORS[item.platform] || PLATFORM_COLORS.UNKNOWN }}>
+                  <div className="cross-platform-view__node" aria-hidden="true">{PLATFORM_ICONS[item.platform] || PLATFORM_ICONS.UNKNOWN}</div>
+                  <h3>{item.platform}</h3>
+                  <time>{formatTime(item.first_seen)}</time>
+                  <Badge variant="neutral">{item.post_count} posts</Badge>
+                  <p>{item.sample_text}</p>
+                </article>
               ))}
             </div>
-          </div>
+          </Card>
+
+          <Card className="cross-platform-view__panel">
+            <header className="cross-platform-view__panel-heading">
+              <div className="cross-platform-view__panel-title"><Globe aria-hidden="true" /><h2>Platform Breakdown</h2></div>
+            </header>
+            <div className="cross-platform-view__breakdown">
+              {data.flow.map((item, index) => (
+                <article key={index} className="cross-platform-view__breakdown-item" style={{ '--platform-tone': PLATFORM_COLORS[item.platform] || PLATFORM_COLORS.UNKNOWN }}>
+                  <div className="cross-platform-view__platform-info">
+                    <span className="cross-platform-view__platform-icon" aria-hidden="true">{PLATFORM_ICONS[item.platform]}</span>
+                    <div><h3>{item.platform}</h3><p>First detected: {formatTime(item.first_seen)}</p></div>
+                  </div>
+                  <div className="cross-platform-view__platform-data">
+                    <strong>{item.post_count} posts</strong><p>{item.sample_text}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </Card>
         </>
       )}
-    </div>
+    </section>
   );
 }

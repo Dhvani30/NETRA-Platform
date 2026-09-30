@@ -1,14 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
 import { ZoomIn, ZoomOut, RotateCcw, Building } from 'lucide-react';
 import ForceGraph2D from 'react-force-graph-2d';
+import './NetworkGraph.css';
 
 const NODE_COLORS = {
-  Platform: '#3b82f6',
-  Post: '#64748b',
-  Narrative: '#ec4899',
-  Organization: '#a855f7',
-  Location: '#eab308'
+  Platform: 'var(--ds-color-accent)',
+  Post: 'var(--ds-color-text-3)',
+  Narrative: 'var(--ds-color-accent-dim)',
+  Organization: 'var(--ds-color-blue-muted)',
+  Location: 'var(--ds-color-amber-muted)'
 };
+
+const getDesignColor = (token) => getComputedStyle(document.documentElement).getPropertyValue(token).trim();
 
 const NODE_SIZES = {
   Platform: 10,
@@ -18,7 +21,7 @@ const NODE_SIZES = {
   Location: 9
 };
 
-export default function NetworkGraph({ graphData, searchQuery = null, highlightQuery = null }) {
+export default function NetworkGraph({ graphData, _searchQuery = null, highlightQuery = null }) {
   const fgRef = useRef();
   const [zoom, setZoom] = useState(1);
   const [selectedNode, setSelectedNode] = useState(null);
@@ -69,13 +72,14 @@ export default function NetworkGraph({ graphData, searchQuery = null, highlightQ
   const getNodeColor = (node) => {
     if (highlightQuery) {
       const q = highlightQuery.toLowerCase();
-      if ((node.label || '').toLowerCase().includes(q)) return '#00f0ff';
+      if ((node.label || '').toLowerCase().includes(q)) return getDesignColor('--ds-color-accent-bright');
     }
     // 🎨 SPECIAL CASE: Make YouTube nodes red to match the app's branding
     if (node.group === 'Platform' && (node.label || '').toUpperCase() === 'YOUTUBE') {
-      return '#ef4444'; 
+      return getDesignColor('--ds-color-red-muted');
     }
-    return NODE_COLORS[node.group] || '#888888';
+    const colorToken = NODE_COLORS[node.group] ? NODE_COLORS[node.group].match(/var\(([^)]+)\)/)?.[1] : '--ds-color-text-3';
+    return getDesignColor(colorToken);
   };
 
   const getNodeSize = (node) => {
@@ -96,125 +100,10 @@ export default function NetworkGraph({ graphData, searchQuery = null, highlightQ
   };
 
   return (
-    <div className="p-6 rounded-lg border border-gray-800" style={{ backgroundColor: '#13131f' }}>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: '#00f0ff' }}>
-          <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
-          ENTITY RELATIONSHIP NETWORK ({graphData?.nodes?.length || 0} nodes)
-        </h2>
-        <div className="flex items-center gap-2">
-          <button onClick={handleZoomIn} className="p-2 rounded bg-gray-700 hover:bg-gray-600 transition-colors" title="Zoom In">
-            <ZoomIn className="w-4 h-4 text-white" />
-          </button>
-          <button onClick={handleZoomOut} className="p-2 rounded bg-gray-700 hover:bg-gray-600 transition-colors" title="Zoom Out">
-            <ZoomOut className="w-4 h-4 text-white" />
-          </button>
-          <button onClick={handleResetZoom} className="p-2 rounded bg-gray-700 hover:bg-gray-600 transition-colors" title="Reset View">
-            <RotateCcw className="w-4 h-4 text-white" />
-          </button>
-        </div>
-      </div>
-
-      <div className="flex gap-4 text-xs text-gray-400 mb-4 pb-3 border-b border-gray-800">
-        {highlightQuery && <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full" style={{backgroundColor: '#00f0ff'}}></span> Search Match</span>}
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full" style={{backgroundColor: '#a855f7'}}></span> Organization</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full" style={{backgroundColor: '#ec4899'}}></span> Narrative</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full" style={{backgroundColor: '#3b82f6'}}></span> Platform (X/Reddit)</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full" style={{backgroundColor: '#ef4444'}}></span> Platform (YouTube)</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full" style={{backgroundColor: '#eab308'}}></span> Location</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full" style={{backgroundColor: '#64748b'}}></span> Post</span>
-      </div>
-
-      {/* Graph Container */}
-      <div className="rounded-lg overflow-hidden border border-gray-800 relative" style={{ height: '500px', backgroundColor: '#0a0a0f' }}>
-        {!graphData || graphData.nodes?.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <Building className="w-12 h-12 mb-2 opacity-50" />
-            <p className="text-sm">No graph data available.</p>
-            <p className="text-xs mt-1">Run graph_builder.py to populate Neo4j.</p>
-          </div>
-        ) : (
-          <>
-            <ForceGraph2D
-              ref={fgRef}
-              graphData={graphData}
-              width={dimensions.width}
-              height={dimensions.height}
-              nodeLabel={node => node.label}
-              nodeColor={getNodeColor}
-              nodeRelSize={getNodeSize}
-              linkColor={() => '#334155'}
-              linkWidth={1.5}
-              backgroundColor="#0a0a0f"
-              cooldownTicks={200}
-              linkDistance={80}
-              chargeStrength={-400}
-              d3VelocityDecay={0.3}
-              onNodeClick={handleNodeClick}
-              onNodeHover={(node) => {
-                setHoveredNode(node);
-                document.body.style.cursor = node ? 'pointer' : 'default';
-              }}
-              nodeCanvasObject={(node, ctx, globalScale) => {
-                const label = node.label || '';
-                const size = getNodeSize(node);
-                const isHovered = hoveredNode?.id === node.id;
-                const isMatch = highlightQuery && label.toLowerCase().includes(highlightQuery.toLowerCase());
-                const showLabel = shouldShowLabel(node, globalScale);
-
-                // Draw node circle
-                ctx.beginPath();
-                ctx.arc(node.x, node.y, size, 0, 2 * Math.PI);
-                ctx.fillStyle = getNodeColor(node);
-                ctx.fill();
-
-                // Draw glow ring for hovered or matched nodes
-                if (isHovered || isMatch) {
-                  ctx.beginPath();
-                  ctx.arc(node.x, node.y, size + 4, 0, 2 * Math.PI);
-                  ctx.strokeStyle = '#00f0ff';
-                  ctx.lineWidth = 2;
-                  ctx.stroke();
-                }
-
-                // Draw label in canvas (small, subtle)
-                if (showLabel && label && !isHovered) {
-                  const fontSize = Math.max(10, 11 / globalScale);
-                  ctx.font = `${fontSize}px Sans-Serif`;
-                  ctx.fillStyle = '#ffffff';
-                  ctx.textAlign = 'center';
-                  ctx.textBaseline = 'middle';
-                  ctx.fillText(label, node.x, node.y + size + fontSize);
-                }
-              }}
-            />
-            
-            {/* 🌟 FLOATING HOVER LABEL - Pops above everything */}
-            {hoveredNode && (
-              <div
-                className="absolute pointer-events-none px-3 py-1.5 rounded-md bg-black/90 border border-cyan-400 text-cyan-400 font-bold text-sm whitespace-nowrap shadow-lg z-50"
-                style={{
-                  left: `${hoveredNode.x}px`,
-                  top: `${hoveredNode.y - 15}px`,
-                  transform: 'translate(-50%, -100%)'
-                }}
-              >
-                {hoveredNode.label}
-                <span className="ml-2 text-xs text-gray-400 font-normal">({hoveredNode.group})</span>
-              </div>
-            )}
-
-            {/* Selected Node Info Panel */}
-            {selectedNode && (
-              <div className="absolute top-4 right-4 p-4 rounded-lg border border-gray-700" style={{ backgroundColor: '#13131f', maxWidth: '300px' }}>
-                <h3 className="text-sm font-bold mb-2" style={{ color: '#00f0ff' }}>{selectedNode.label}</h3>
-                <p className="text-xs text-gray-400 mb-2">Type: {selectedNode.group}</p>
-                <p className="text-xs text-gray-500">Click another node to explore</p>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
+    <section className="network-graph" aria-label="Network graph">
+      <header className="network-graph__header"><div className="network-graph__title-wrap"><span className="network-graph__status-dot" aria-hidden="true" /><div><p className="network-graph__eyebrow">Entity relationships</p><h2>Network <span>Graph</span></h2><p className="network-graph__count">{graphData?.nodes?.length || 0} nodes · {graphData?.links?.length || 0} connections</p></div></div><div className="network-graph__controls" aria-label="Graph controls"><button type="button" onClick={handleZoomIn} title="Zoom In" aria-label="Zoom in"><ZoomIn /></button><button type="button" onClick={handleZoomOut} title="Zoom Out" aria-label="Zoom out"><ZoomOut /></button><button type="button" onClick={handleResetZoom} title="Reset View" aria-label="Reset graph view"><RotateCcw /></button></div></header>
+      <div className="network-graph__legend" aria-label="Node types">{highlightQuery && <span><i style={{ backgroundColor: 'var(--ds-color-accent-bright)' }} />Search match</span>}<span><i style={{ backgroundColor: NODE_COLORS.Organization }} />Organization</span><span><i style={{ backgroundColor: NODE_COLORS.Narrative }} />Narrative</span><span><i style={{ backgroundColor: NODE_COLORS.Platform }} />Platform</span><span><i style={{ backgroundColor: NODE_COLORS.Location }} />Location</span><span><i style={{ backgroundColor: NODE_COLORS.Post }} />Post</span></div>
+      <div className="network-graph__canvas">{!graphData || graphData.nodes?.length === 0 ? <div className="network-graph__empty" role="status"><Building aria-hidden="true" /><h3>No graph data available</h3><p>Run graph_builder.py to populate Neo4j.</p></div> : <><ForceGraph2D ref={fgRef} graphData={graphData} width={dimensions.width} height={dimensions.height} nodeLabel={node => node.label} nodeColor={getNodeColor} nodeRelSize={getNodeSize} linkColor={() => getDesignColor('--ds-color-accent-faint')} linkWidth={1.5} backgroundColor={getDesignColor('--ds-color-bg')} cooldownTicks={200} linkDistance={80} chargeStrength={-400} d3VelocityDecay={0.3} onNodeClick={handleNodeClick} onNodeHover={(node) => { setHoveredNode(node); document.body.style.cursor = node ? 'pointer' : 'default'; }} nodeCanvasObject={(node, ctx, globalScale) => { const label = node.label || ''; const size = getNodeSize(node); const isHovered = hoveredNode?.id === node.id; const isMatch = highlightQuery && label.toLowerCase().includes(highlightQuery.toLowerCase()); const showLabel = shouldShowLabel(node, globalScale); ctx.beginPath(); ctx.arc(node.x, node.y, size, 0, 2 * Math.PI); ctx.fillStyle = getNodeColor(node); ctx.fill(); if (isHovered || isMatch) { ctx.beginPath(); ctx.arc(node.x, node.y, size + 4, 0, 2 * Math.PI); ctx.strokeStyle = getDesignColor('--ds-color-accent-bright'); ctx.lineWidth = 2; ctx.stroke(); } if (showLabel && label && !isHovered) { const fontSize = Math.max(10, 11 / globalScale); ctx.font = `${fontSize}px Space Grotesk`; ctx.fillStyle = getDesignColor('--ds-color-text-1'); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, node.x, node.y + size + fontSize); } }} />{hoveredNode && <div className="network-graph__hover" style={{ left: `${hoveredNode.x}px`, top: `${hoveredNode.y - 15}px` }}><strong>{hoveredNode.label}</strong><span>{hoveredNode.group}</span></div>}{selectedNode && <aside className="network-graph__selection" aria-live="polite"><h3>{selectedNode.label}</h3><p>Type: {selectedNode.group}</p><span>Click another node to explore</span></aside>}</>}</div>
+    </section>
   );
 }
