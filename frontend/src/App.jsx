@@ -1,7 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
-import { Search, Globe, MessageSquare, RefreshCw, Share2 } from 'lucide-react';
+import {
+  ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid
+} from 'recharts';
+import {
+  Search, ChevronDown, ChevronRight, ArrowLeft, ArrowRight,
+  TrendingUp, HelpCircle, RefreshCw, Sparkles
+} from 'lucide-react';
+
+import LandingPage from './components/LandingPage';
+import LiveFeedView from './components/LiveFeedView';
+import ProvenanceDrawer from './components/ProvenanceDrawer';
+import DemoChecklistDrawer from './components/DemoChecklistDrawer';
 import InvestigationView from './components/InvestigationView';
 import NetworkGraph from './components/NetworkGraph';
 import NarrativeTracker from './components/NarrativeTracker';
@@ -9,44 +19,150 @@ import CrossPlatformView from './components/CrossPlatformView';
 import AlertsView from './components/AlertsView';
 import DemographicsView from './components/DemographicsView';
 import NetworkIntelligenceView from './components/NetworkIntelligenceView';
-import { Badge, Button, Card, Input } from './components/ui/primitives';
-import './components/AnalyticsView.css';
+import YouTubeFeedView from './components/YouTubeFeedView';
+import SourcesTimelineView from './components/SourcesTimelineView';
+import SentimentTimelineView from './components/SentimentTimelineView';
+import TrendsView from './components/TrendsView';
+import MetaFeedView from './components/MetaFeedView';
+import LiveStatusStrip from './components/LiveStatusStrip';
+import { useLiveStream } from './hooks/useLiveStream';
+import WatchlistView from './components/WatchlistView';
+import CoverageView from './components/CoverageView';
 
-const API_URL = 'http://localhost:8000/api/v1';
-const SENTIMENT_COLORS = { Positive: 'var(--ds-color-green-muted)', Negative: 'var(--ds-color-red-muted)', Neutral: 'var(--ds-color-amber-muted)', ABSTAIN: 'var(--ds-color-text-3)' };
+import { Badge, Button, Input, PillTabs } from './components/ui/primitives';
+import { API_URL } from './config';
+
+const NAV_GROUPS = [
+  {
+    id: 'MONITOR',
+    label: 'MONITOR',
+    defaultOpen: true,
+    items: [
+      { id: 'live_feed', label: 'Live Telemetry Feed' },
+      { id: 'analytics', label: 'Analytics' },
+      { id: 'alerts', label: 'Alerts' },
+      { id: 'youtube', label: 'YouTube Feed' },
+      { id: 'meta', label: 'Meta Feed' },
+      { id: 'sources', label: 'Sources & Timeline' },
+      { id: 'watchlist', label: 'Topic Watchlist' },
+      { id: 'coverage', label: 'Coverage Map' },
+      { id: 'demographics', label: 'Demographics' }
+      ,{ id: 'trends', label: 'Rising Topics' }
+      ,{ id: 'sentiment_timeline', label: 'Sentiment Timeline' }
+    ]
+  },
+  {
+    id: 'INVESTIGATE',
+    label: 'INVESTIGATE',
+    defaultOpen: false,
+    items: [
+      { id: 'investigate', label: 'Deep Search' },
+      { id: 'mutation', label: 'Narrative Tracker' },
+      { id: 'correlation', label: 'Cross-Platform' }
+    ]
+  },
+  {
+    id: 'NETWORK',
+    label: 'NETWORK',
+    defaultOpen: false,
+    items: [
+      { id: 'graph', label: 'Network Graph' },
+      { id: 'network_intel', label: 'Network Intel' }
+    ]
+  }
+];
 
 function App() {
-  const [activeTab, setActiveTab] = useState('analytics');
+  const [currentPath, setCurrentPath] = useState(
+    typeof window !== 'undefined' && window.location.pathname.startsWith('/dashboard')
+      ? '/dashboard'
+      : '/'
+  );
+
+  const [activeScreen, setActiveScreen] = useState('live_feed');
+  const [selectedProvenancePost, setSelectedProvenancePost] = useState(null);
+  const [showDemoDrawer, setShowDemoDrawer] = useState(false);
+  const [openGroups, setOpenGroups] = useState({
+    MONITOR: true,
+    INVESTIGATE: false,
+    NETWORK: false
+  });
+
+  const [summaryData, setSummaryData] = useState(null);
+  const [timeseriesData, setTimeseriesData] = useState([]);
+  const [dataOrigin, setDataOrigin] = useState(null);
   const [sentimentData, setSentimentData] = useState([]);
   const [narrativeData, setNarrativeData] = useState([]);
   const [graphData, setGraphData] = useState({ nodes: [], links: [] });
   const [messages, setMessages] = useState([]);
+  const [sourcesStatus, setSourcesStatus] = useState({});
+  const [liveSummary, setLiveSummary] = useState(null);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
   const [investigationData, setInvestigationData] = useState(null);
-  
-  // 🔄 MAGIC REFRESH KEY
   const [refreshKey, setRefreshKey] = useState(0);
+  const [realOnly, setRealOnly] = useState(() => new URLSearchParams(window.location.search).get('real_only') !== '0');
+  const onLiveEvent = useCallback(() => { setRefreshKey(key => key + 1); }, []);
+  const { connected: backendConnected } = useLiveStream(onLiveEvent);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('real_only', realOnly ? '1' : '0');
+    window.history.replaceState({}, '', url);
+  }, [realOnly]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname.startsWith('/dashboard') ? '/dashboard' : '/');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const navigateToDashboard = () => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', '/dashboard');
+    }
+    setCurrentPath('/dashboard');
+  };
+
+  const navigateToLanding = () => {
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', '/');
+    }
+    setCurrentPath('/');
+  };
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [sentimentRes, narrativeRes, graphRes, messagesRes] = await Promise.all([
-        axios.get(`${API_URL}/analytics/sentiment`),
-        axios.get(`${API_URL}/analytics/narratives`),
-        axios.get(`${API_URL}/graph/data`),
-        axios.get(`${API_URL}/messages?limit=20`)
+      const sourceFilter = realOnly ? { real_only: 1 } : {};
+      const [summaryRes, timeseriesRes, originRes, sentimentRes, narrativeRes, graphRes, messagesRes, sourcesRes, liveSumRes] = await Promise.all([
+        axios.get(`${API_URL}/analytics/summary`, { params: sourceFilter }),
+        axios.get(`${API_URL}/analytics/timeseries`, { params: sourceFilter }),
+        axios.get(`${API_URL}/analytics/data-origin`, { params: sourceFilter }),
+        axios.get(`${API_URL}/analytics/sentiment`, { params: sourceFilter }),
+        axios.get(`${API_URL}/analytics/narratives`, { params: sourceFilter }),
+        axios.get(`${API_URL}/graph/data`, { params: sourceFilter }),
+        axios.get(`${API_URL}/messages?limit=20`, { params: sourceFilter }),
+        axios.get(`${API_URL}/health/sources`).catch(() => ({ data: {} })),
+        axios.get(`${API_URL}/live/summary`).catch(() => ({ data: null }))
       ]);
+      setSummaryData(summaryRes.data);
+      setTimeseriesData(timeseriesRes.data.timeseries || []);
+      setDataOrigin(originRes.data);
       setSentimentData(sentimentRes.data.sentiment_breakdown || []);
       setNarrativeData(narrativeRes.data.clusters || []);
       setGraphData(graphRes.data || { nodes: [], links: [] });
       setMessages(messagesRes.data.messages || []);
+      setSourcesStatus(sourcesRes.data || {});
+      setLiveSummary(liveSumRes.data || null);
       setLastUpdated(new Date());
-    } catch (error) { 
-      console.error('Error fetching data:', error); 
-    } finally { 
-      setLoading(false); 
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -56,199 +172,394 @@ function App() {
       try {
         const searchRes = await axios.get(`${API_URL}/search?q=${encodeURIComponent(searchQuery)}`);
         setInvestigationData(searchRes.data);
-      } catch (error) { 
-        console.error('Error searching:', error); 
-      } finally { 
-        setLoading(false); 
+        setActiveScreen('investigate');
+      } catch (error) {
+        console.error('Error searching:', error);
+      } finally {
+        setLoading(false);
       }
     }
   };
 
-  const handleBackToDashboard = () => { 
-    setInvestigationData(null); 
-    setSearchQuery(''); 
+  const handleBackToDashboard = () => {
+    setInvestigationData(null);
+    setSearchQuery('');
+    setActiveScreen('analytics');
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [realOnly]);
 
-  const getPlatformIcon = (platform) => {
-    const p = platform?.toLowerCase() || '';
-    if (p.includes('twitter') || p.includes('x')) return <Share2 className="w-4 h-4" />;
-    if (p.includes('reddit')) return <MessageSquare className="w-4 h-4" />;
-    return <Globe className="w-4 h-4" />;
+  const toggleGroup = (groupId) => {
+    setOpenGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }));
   };
 
-  const getRelativeTime = (timestamp) => {
-    if (!timestamp) return 'Unknown';
-    const diffMs = new Date() - new Date(timestamp);
-    const mins = Math.floor(diffMs / 60000);
-    if (mins < 1) return 'Just now';
-    if (mins < 60) return `${mins}m ago`;
-    return `${Math.floor(mins / 60)}h ago`;
-  };
+  // If at root '/', render Landing Page
+  if (currentPath === '/') {
+    return <LandingPage onOpenDashboard={navigateToDashboard} />;
+  }
 
+  const totalPostsCount = summaryData?.total_posts ?? 0;
+
+  // If at '/dashboard', render Dashboard Shell
   return (
-    <div className="netra-app min-h-screen p-6">
-      {/* Header */}
-      <header className="netra-header mb-8 flex justify-between items-center">
-        <h1 className="netra-title">NETRA <span>INTELLIGENCE</span></h1>
-        {!investigationData && (
-          <div className="netra-toolbar flex gap-2 items-center flex-wrap">
-            <Button variant="nav" active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')}>
-              Analytics
-            </Button>
-            <Button variant="nav" active={activeTab === 'mutation'} onClick={() => setActiveTab('mutation')}>
-              Mutation Tracker
-            </Button>
-            <Button variant="nav" active={activeTab === 'correlation'} onClick={() => setActiveTab('correlation')}>
-              Cross-Platform
-            </Button>
-            <Button variant="nav" active={activeTab === 'alerts'} onClick={() => setActiveTab('alerts')}>
-              Alerts
-            </Button>
-            <Button variant="nav" active={activeTab === 'demographics'} onClick={() => setActiveTab('demographics')}>
-              Demographics
-            </Button>
-            <Button variant="nav" active={activeTab === 'network_intel'} onClick={() => setActiveTab('network_intel')}>
-              Network Intel
-            </Button>
-            <Button variant="nav" active={activeTab === 'graph'} onClick={() => setActiveTab('graph')}>
-              Network Graph
-            </Button>
-            
-            {/* 🔄 FIXED REFRESH BUTTON */}
-            <Button variant="secondary" loading={loading} className="flex items-center gap-2" onClick={() => { fetchData(); setRefreshKey(prev => prev + 1); }}>
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-            </Button>
-            
-            {lastUpdated && <Badge>Last Updated: {lastUpdated.toLocaleTimeString()}</Badge>}
+    <div className="netra-shell">
+      {/* 200px Fixed Sidebar */}
+      <aside className="netra-sidebar">
+        <div>
+          {/* Logo / Home button */}
+          <div className="netra-sidebar__logo" onClick={navigateToLanding} title="Back to product home">
+            <div className="netra-sidebar__logo-mark">N</div>
+            <span>NETRA</span>
           </div>
-        )}
-      </header>
 
-      {/* Search Bar */}
-      {!investigationData && (
-        <div className="netra-search-wrap mb-6">
-          <div className="relative">
-            <Search className="netra-search-icon absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5" />
+          {/* Collapsible Nav Groups */}
+          <nav className="mt-4 space-y-1">
+            {NAV_GROUPS.map((group) => {
+              const isOpen = openGroups[group.id];
+              return (
+                <div key={group.id} className="netra-sidebar__group">
+                  <button
+                    className="netra-sidebar__group-title"
+                    onClick={() => toggleGroup(group.id)}
+                  >
+                    <span>{group.label}</span>
+                    {isOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                  </button>
+
+                  {isOpen && (
+                    <div className="mt-1 space-y-0.5">
+                      {group.items.map((item) => {
+                        const isActive = activeScreen === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            className={`netra-sidebar__item ${isActive ? 'is-active' : ''}`}
+                            onClick={() => {
+                              setActiveScreen(item.id);
+                              if (item.id !== 'investigate') setInvestigationData(null);
+                            }}
+                          >
+                            <span>{item.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Single Support Pill Button at Bottom (No Promo Card) */}
+        <div className="netra-sidebar__support">
+          <button className="pill w-full flex items-center justify-center gap-2 text-xs">
+            <HelpCircle className="w-3.5 h-3.5" /> Support
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Column */}
+      <div className="netra-main">
+        {/* Topbar */}
+        <header className="netra-topbar">
+          <div className="flex items-center gap-4">
+            {investigationData && (
+              <button
+                onClick={handleBackToDashboard}
+                className="pill flex items-center gap-1.5 text-xs text-slate-300"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" /> Back
+              </button>
+            )}
+            <h1 className="netra-topbar__title" onClick={navigateToLanding} style={{ cursor: 'pointer' }}>
+              NETRA <span>INTELLIGENCE</span>
+            </h1>
+          </div>
+
+          {/* Global Search Input */}
+          <div className="netra-topbar__search relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <Input
-              type="text" 
-              placeholder="Investigate topic, entity, or narrative... (press Enter)"
-              aria-label="Search investigations"
-              value={searchQuery} 
-              onChange={(e) => setSearchQuery(e.target.value)} 
-              onKeyDown={handleSearch} 
-              className="ds-input--search w-full"
+              type="text"
+              placeholder="Search intelligence, topics, narratives..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearch}
+              className="ds-input--search text-xs py-1.5"
             />
           </div>
-        </div>
-      )}
 
-      {/* Main Content Area */}
-      {investigationData ? (
-        <InvestigationView investigationData={investigationData} graphData={graphData} onBack={handleBackToDashboard} searchQuery={searchQuery} />
-      ) : (
-        <>
-          {activeTab === 'analytics' && (
-            <section className="analytics-view" aria-labelledby="analytics-heading">
-              <header className="analytics-view__header">
-                <p className="analytics-view__eyebrow">Dashboard</p>
-                <h1 id="analytics-heading" className="analytics-view__title">Analytics</h1>
-              </header>
-              {loading && !lastUpdated ? (
-                <Card className="analytics-view__loading" role="status">
-                  <RefreshCw className="analytics-view__loading-icon animate-spin" />
-                  <p>Loading analytics…</p>
-                </Card>
-              ) : (
-                <div className="analytics-view__grid">
-                  <Card className="analytics-view__card">
-                    <header className="analytics-view__card-header"><h2>Sentiment Distribution</h2></header>
-                    {sentimentData.length === 0 ? (
-                      <div className="analytics-view__empty"><p>No sentiment data available.</p></div>
-                    ) : (
-                      <div className="analytics-view__chart">
-                        <ResponsiveContainer width="100%" height={240}>
-                          <PieChart>
-                            <Pie data={sentimentData} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={100} label>
-                              {sentimentData.map((entry, index) => <Cell key={"cell-" + index} fill={SENTIMENT_COLORS[entry.label] || 'var(--ds-color-text-3)'} />)}
-                            </Pie>
-                            <Tooltip contentStyle={{ backgroundColor: 'var(--ds-color-bg-elevated)', border: '1px solid var(--ds-color-glass-border)', borderRadius: 'var(--ds-radius-md)', color: 'var(--ds-color-text-1)' }} itemStyle={{ color: 'var(--ds-color-text-1)' }} />
-                            <Legend wrapperStyle={{ color: 'var(--ds-color-text-2)' }} />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                    )}
-                  </Card>
-                  <Card className="analytics-view__card">
-                    <header className="analytics-view__card-header"><h2>Emerging Narratives</h2></header>
-                    {narrativeData.length === 0 ? (
-                      <div className="analytics-view__empty"><p>No narrative data available.</p></div>
-                    ) : (
-                      <div className="analytics-view__chart">
-                        <ResponsiveContainer width="100%" height={240}>
-                          <BarChart data={narrativeData} layout="vertical">
-                            <CartesianGrid strokeDasharray="3 3" stroke="var(--ds-color-glass-border)" />
-                            <XAxis type="number" stroke="var(--ds-color-text-3)" tick={{ fill: 'var(--ds-color-text-3)' }} />
-                            <YAxis dataKey="name" type="category" width={100} stroke="var(--ds-color-text-3)" tick={{ fill: 'var(--ds-color-text-2)' }} />
-                            <Tooltip contentStyle={{ backgroundColor: 'var(--ds-color-bg-elevated)', border: '1px solid var(--ds-color-glass-border)', borderRadius: 'var(--ds-radius-md)', color: 'var(--ds-color-text-1)' }} itemStyle={{ color: 'var(--ds-color-text-1)' }} />
-                            <Bar dataKey="count" fill="var(--ds-color-accent)" />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    )}
-                  </Card>
-                  <Card className="analytics-view__card analytics-view__feed-card">
-                    <header className="analytics-view__card-header"><h2>Live Intelligence Feed</h2></header>
-                    {messages.length === 0 ? (
-                      <div className="analytics-view__empty"><p>No messages available.</p></div>
-                    ) : (
-                      <div className="analytics-view__feed">
-                        {messages.map((msg, i) => (
-                          <article key={i} className="analytics-view__message">
-                            <div className="analytics-view__message-meta">
-                              <span className="analytics-view__platform-icon">{getPlatformIcon(msg.platform)}</span>
-                              <span className="analytics-view__platform">{msg.platform?.toUpperCase() || 'UNKNOWN'}</span>
-                              <span className="analytics-view__separator">·</span>
-                              <span className="analytics-view__time">{getRelativeTime(msg.published_at)}</span>
-                            </div>
-                            <p className="analytics-view__message-text">{msg.text_content?.substring(0, 150) || 'No content'}...</p>
-                          </article>
-                        ))}
-                      </div>
-                    )}
-                  </Card>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowDemoDrawer(true)}
+              className="pill text-[11px] flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 font-medium transition-colors cursor-pointer"
+              title="Open Demo Mode Checklist & Platform Coverage"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              Demo Checklist
+            </button>
+            <LiveStatusStrip origin={dataOrigin} connected={backendConnected} realOnly={realOnly} onToggle={setRealOnly} onSources={() => setActiveScreen('sources')} />
+          </div>
+        </header>
+
+        {/* Content Area */}
+        <main className="netra-content">
+          <div className="netra-content__inner">
+            {/* SCREEN 1: ANALYTICS */}
+            {activeScreen === 'analytics' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h1 className="text-xl font-light text-white tracking-wide">
+                    Analytics <span className="text-indigo-300 font-normal">Dashboard</span>
+                  </h1>
+                  <Button variant="secondary" onClick={fetchData} loading={loading}>
+                    <RefreshCw className={loading ? 'animate-spin' : ''} /> Refresh Data
+                  </Button>
                 </div>
-              )}
-            </section>
-          )}
-          
-          {/* 🔄 PASSING REFRESH KEY TO FORCE REMOUNT */}
-          {activeTab === 'mutation' && (
-            <NarrativeTracker key={refreshKey} />
-          )}
 
-          {activeTab === 'correlation' && (
-            <CrossPlatformView key={refreshKey} />
-          )}
+                {/* KPI Card Row (Real Counts & Source Verification) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Card 1: Total Posts split by source_mode */}
+                  <div className="glass p-4 flex flex-col justify-between">
+                    <div>
+                      <span className="label-xs text-slate-400">TOTAL INGESTION (BY MODE)</span>
+                      <div className="flex items-baseline justify-between mt-1">
+                        <span className="kpi-value">
+                          {loading ? '...' : (summaryData?.total_posts ?? dataOrigin?.total ?? 0).toLocaleString()}
+                        </span>
+                        <span className="text-[10px] font-mono text-emerald-400">authoritative</span>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      <span className="pill text-[9px] pill--live">LIVE: <strong>{dataOrigin?.live ?? 0}</strong></span>
+                      <span className="pill text-[9px] pill--live-third-party" title="Collected live through a disclosed third-party provider">LIVE_THIRD_PARTY: <strong>{dataOrigin?.live_third_party ?? 0}</strong></span>
+                      <span className="pill text-[9px] pill--import">IMPORT: <strong>{dataOrigin?.import ?? 0}</strong></span>
+                      <span className="pill text-[9px] pill--synth">SYNTH: <strong>{dataOrigin?.synth ?? 0}</strong></span>
+                    </div>
+                  </div>
 
-          {activeTab === 'alerts' && (
-            <AlertsView key={refreshKey} />
-          )}
+                  {/* Card 2: Data Freshness */}
+                  <div className="glass p-4 flex flex-col justify-between">
+                    <div>
+                      <span className="label-xs text-slate-400">DATA FRESHNESS</span>
+                      <div className="flex items-baseline justify-between mt-1">
+                        <span className="kpi-value text-emerald-400">
+                          {liveSummary?.newest_item_age_seconds != null ? `${liveSummary.newest_item_age_seconds}s` : 'Active'}
+                        </span>
+                        <span className="text-[10px] font-mono text-slate-400">newest item</span>
+                      </div>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] font-mono">
+                      {['telegram', 'youtube', 'facebook', 'instagram'].map(p => {
+                        const src = sourcesStatus[p] || {};
+                        const isFresh = src.status === 'LIVE' || (src.last_success && (Date.now() - new Date(src.last_success).getTime()) < 3600000);
+                        const label = src.last_success
+                          ? `${Math.max(0, Math.floor((Date.now() - new Date(src.last_success).getTime()) / 60000))}m ago`
+                          : (src.status === 'LIVE' ? 'live' : 'idle');
+                        return (
+                          <div key={p} className="flex justify-between items-center text-slate-300">
+                            <span className="capitalize text-slate-400">{p}:</span>
+                            <span className={isFresh ? 'text-emerald-400 font-semibold' : 'text-slate-500'}>{label}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-          {activeTab === 'demographics' && (
-            <DemographicsView key={refreshKey} />
-          )}
+                  {/* Card 3: Coverage Mini-Matrix */}
+                  <div className="glass p-4 flex flex-col justify-between">
+                    <div>
+                      <span className="label-xs text-slate-400">COVERAGE MINI-MATRIX</span>
+                      <div className="mt-2 space-y-1.5">
+                        <div className="flex flex-wrap gap-1">
+                          {['telegram', 'youtube', 'facebook', 'instagram', 'x', 'reddit'].map(p => {
+                            const src = sourcesStatus[p] || {};
+                            const isNotEnabled = src.status === 'Not enabled in this build' || src.mode === 'DISABLED';
+                            const isLive = !isNotEnabled && src.status === 'LIVE';
+                            return (
+                              <span key={p} className={`px-1.5 py-0.5 rounded text-[10px] font-mono border capitalize flex items-center gap-1 ${
+                                isNotEnabled ? 'bg-white/[0.02] border-white/5 text-slate-500' : 'bg-white/5 border-white/10 text-slate-300'
+                              }`} title={isNotEnabled ? 'Not enabled in this build' : src.status}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${isNotEnabled ? 'bg-slate-600' : isLive ? 'bg-emerald-400' : src.status === 'READY' ? 'bg-sky-400' : 'bg-slate-500'}`} />
+                                {p}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setActiveScreen('coverage')}
+                      className="text-xs text-indigo-300 hover:text-indigo-200 flex items-center gap-1 font-medium link-underline pt-2"
+                    >
+                      View Coverage Matrix <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
 
-          {activeTab === 'network_intel' && (
-            <NetworkIntelligenceView key={refreshKey} />
-          )}
-          
-          {activeTab === 'graph' && (
-            <NetworkGraph graphData={graphData} key={refreshKey} />
-          )}
-        </>
+                  {/* Card 4: Intelligence Signals */}
+                  <div className="glass p-4 flex flex-col justify-between">
+                    <div>
+                      <span className="label-xs text-slate-400">INTELLIGENCE SIGNALS</span>
+                      <div className="flex items-baseline justify-between mt-1">
+                        <span className="kpi-value">
+                          {loading ? '...' : (summaryData?.active_narratives ?? 0)}
+                        </span>
+                        <span className="text-[10px] font-mono text-indigo-300">narratives</span>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-xs font-mono text-slate-300 pt-1 border-t border-white/5">
+                      <span>Alerts: <strong className="text-amber-400">{summaryData?.active_alerts ?? 0}</strong></span>
+                      <span>Sentiment: <strong className={summaryData?.avg_sentiment > 0 ? 'text-emerald-400' : 'text-slate-300'}>{summaryData?.avg_sentiment ?? '0.00'}</strong></span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Main Visualization: Chart Card with Dynamic Hourly Volume Timeseries */}
+                <div className="glass glass-lg p-5 relative">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-sm font-light text-white">
+                      Narrative <span className="text-indigo-300 font-normal">Volume Timeseries (Hourly)</span>
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <span className="pill pill-active text-[11px]">Dynamic DB Telemetry</span>
+                    </div>
+                  </div>
+
+                  <div className="h-[240px] w-full relative">
+                    {timeseriesData.length === 0 ? (
+                      <div className="flex items-center justify-center h-full text-slate-500 text-xs font-mono">
+                        No timeseries telemetry points available in database.
+                      </div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={timeseriesData}>
+                          <defs>
+                            <linearGradient id="posGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#9A9EE8" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#9A9EE8" stopOpacity={0} />
+                            </linearGradient>
+                            <linearGradient id="negGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#C07070" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#C07070" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="4 4" stroke="rgba(255,255,255,0.04)" horizontal={true} vertical={false} />
+                          <XAxis dataKey="time" stroke="#5B5F7A" tick={{ fill: '#5B5F7A', fontSize: 10, fontFamily: 'JetBrains Mono' }} />
+                          <YAxis stroke="#5B5F7A" tick={{ fill: '#5B5F7A', fontSize: 10, fontFamily: 'JetBrains Mono' }} />
+                          <Tooltip contentStyle={{ backgroundColor: '#08091A', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '12px', fontSize: '12px' }} />
+                          <Area type="monotone" dataKey="positive" stroke="#9A9EE8" fill="url(#posGrad)" strokeWidth={2} />
+                          <Area type="monotone" dataKey="negative" stroke="#C07070" fill="url(#negGrad)" strokeWidth={2} />
+                          <Area type="monotone" dataKey="neutral" stroke="#5B5F7A" strokeDasharray="3 3" fill="none" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                </div>
+
+                {/* Dynamic Tracked Narratives Table (.data-table) */}
+                <div className="glass p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-sm font-light text-white">
+                      Tracked <span className="text-indigo-300 font-normal">Narratives</span>
+                    </h2>
+                    <span className="label-xs">Top Active Clusters</span>
+                  </div>
+
+                  {narrativeData.length === 0 ? (
+                    <div className="p-8 text-center text-slate-500 text-xs font-mono">
+                      No active narrative clusters found in database.
+                    </div>
+                  ) : (
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Narrative</th>
+                          <th>Posts</th>
+                          <th>Share</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {narrativeData.slice(0, 5).map((row, idx) => {
+                          const share = totalPostsCount > 0 ? Math.round((row.count / totalPostsCount) * 100) : 0;
+                          return (
+                            <tr key={idx}>
+                              <td>
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-6 h-6 rounded-full bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-[10px] font-mono text-indigo-300">
+                                    {idx + 1}
+                                  </div>
+                                  <div>
+                                    <div className="font-medium text-gray-100">{row.name}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td><span className="font-mono text-xs text-slate-200">{row.count}</span></td>
+                              <td>
+                                <div className="w-24 bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                                  <div
+                                    className="bg-gradient-to-r from-slate-400 to-indigo-300 h-full rounded-full"
+                                    style={{ width: `${Math.min(100, share * 3)}%` }}
+                                  />
+                                </div>
+                              </td>
+                              <td>
+                                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                                  Active ({share}%)
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeScreen === 'live_feed' && <LiveFeedView key={refreshKey} onSelectPost={setSelectedProvenancePost} realOnly={realOnly} />}
+            {activeScreen === 'alerts' && <AlertsView key={refreshKey} />}
+            {activeScreen === 'youtube' && <YouTubeFeedView key={refreshKey} />}
+            {activeScreen === 'meta' && <MetaFeedView key={refreshKey} />}
+            {activeScreen === 'sources' && <SourcesTimelineView key={refreshKey} />}
+            {activeScreen === 'watchlist' && <WatchlistView key={refreshKey} />}
+            {activeScreen === 'coverage' && <CoverageView key={refreshKey} />}
+            {activeScreen === 'demographics' && <DemographicsView key={refreshKey} />}
+            {activeScreen === 'sentiment_timeline' && <SentimentTimelineView key={refreshKey} />}
+            {activeScreen === 'trends' && <TrendsView key={refreshKey} />}
+            {activeScreen === 'investigate' && (
+              <InvestigationView
+                investigationData={investigationData || { query: searchQuery, documents: messages }}
+                graphData={graphData}
+                onBack={handleBackToDashboard}
+                searchQuery={searchQuery || 'cybersecurity'}
+                onSelectPost={setSelectedProvenancePost}
+              />
+            )}
+            {activeScreen === 'mutation' && <NarrativeTracker key={refreshKey} />}
+            {activeScreen === 'correlation' && <CrossPlatformView key={refreshKey} />}
+            {activeScreen === 'graph' && <NetworkGraph graphData={graphData} key={refreshKey} />}
+            {activeScreen === 'network_intel' && <NetworkIntelligenceView key={refreshKey} />}
+          </div>
+        </main>
+      </div>
+
+      {/* Authoritative Provenance Drawer */}
+      {selectedProvenancePost && (
+        <ProvenanceDrawer
+          post={selectedProvenancePost}
+          onClose={() => setSelectedProvenancePost(null)}
+        />
       )}
+
+      {/* Demo Mode Checklist Drawer */}
+      <DemoChecklistDrawer
+        isOpen={showDemoDrawer}
+        onClose={() => setShowDemoDrawer(false)}
+        onNavigate={(screen) => setActiveScreen(screen)}
+      />
     </div>
   );
 }

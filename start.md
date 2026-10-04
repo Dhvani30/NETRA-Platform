@@ -135,7 +135,7 @@ npm run dev
 
 Before opening your dashboard, let's make sure the backend is working properly:
 
-1. Open your web browser and go to: **`[http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)`**
+1. Open your web browser and go to: **`http://localhost:5173`**
 2. Scroll down the page. You should see these API routes listed:
 * `/api/v1/analytics/mutation`
 * `/api/v1/analytics/correlation`

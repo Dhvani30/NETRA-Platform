@@ -35,13 +35,19 @@ build/
 .vite/
 .next/
 .cache/
+.test-tmp/
 
 # ================================
-# Local Data
+# Local Data & Backups
 # ================================
 data/raw/*.jsonl
 data/raw/
 !data/raw/.gitkeep
+data/import/
+backups/
+*.session
+*.session*
+.telegram_public.session*
 
 # ================================
 # IDE

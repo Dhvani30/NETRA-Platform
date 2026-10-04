@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { Activity, AlertTriangle, TrendingUp, Clock } from 'lucide-react';
-import { Badge, Card } from './ui/primitives';
-import './NarrativeTracker.css';
+import { Activity, Clock } from 'lucide-react';
+import { Badge, GlassCard, KpiCard, ChartCard, PillTabs } from './ui/primitives';
 
-const API_URL = 'http://localhost:8000/api/v1';
+import { API_URL } from '../config';
 
-// Pre-defined narratives to track (matches your database)
 const AVAILABLE_NARRATIVES = [
   "Cyber Attack",
   "AI Development and Regulation",
@@ -46,122 +44,169 @@ export default function NarrativeTracker() {
     }
   };
 
-  // ✅ ADDED: Platform icon helper for consistency across the app
   return (
-    <section className="narrative-tracker" aria-labelledby="mutation-heading" aria-busy={loading}>
-      <header className="narrative-tracker__header">
-        <div className="narrative-tracker__heading">
-          <p className="narrative-tracker__eyebrow">Narrative Tracker</p>
-          <h1 id="mutation-heading">Narrative <span>Mutation</span></h1>
-          <p>Track how intelligence narratives evolve over time.</p>
+    <div className="space-y-8" aria-busy={loading}>
+      {/* Page Header & Filter Controls */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div className="netra-page-header mb-0">
+          <span className="netra-page-eyebrow">Mutation Tracker</span>
+          <h1 className="netra-page-title">Narrative <span>Mutation</span></h1>
+          <p className="netra-page-subtitle">Track how intelligence narratives evolve and morph across time.</p>
         </div>
-        <label className="narrative-tracker__selector">
-          <span>Tracked narrative</span>
-          <select value={selectedNarrative} onChange={(e) => setSelectedNarrative(e.target.value)} className="narrative-tracker__select">
-            {AVAILABLE_NARRATIVES.map(n => <option key={n} value={n}>{n}</option>)}
-          </select>
-        </label>
-      </header>
+
+        {/* Max 3 Filter Pills per row with overflow dropdown */}
+        <div className="flex items-center gap-2">
+          <PillTabs
+            tabs={AVAILABLE_NARRATIVES}
+            activeTab={selectedNarrative}
+            onChange={(narrative) => setSelectedNarrative(narrative)}
+          />
+        </div>
+      </div>
+
       {loading ? (
-        <Card className="narrative-tracker__state" role="status">
-          <Activity className="narrative-tracker__state-icon animate-spin" />
-          <p>Analyzing narrative evolution…</p>
-        </Card>
+        <GlassCard className="p-12 text-center flex flex-col items-center justify-center gap-3">
+          <Activity className="w-8 h-8 text-indigo-400 animate-spin" />
+          <p className="text-gray-300 font-medium">Analyzing narrative mutation history…</p>
+        </GlassCard>
       ) : !data ? (
-        <Card className="narrative-tracker__state" role="status">
-          <Activity className="narrative-tracker__state-icon" />
-          <h2>No mutation data available</h2>
-          <p>Select a narrative to view its tracking data.</p>
-        </Card>
+        <GlassCard className="p-12 text-center">
+          <Activity className="w-8 h-8 text-gray-500 mx-auto mb-2" />
+          <h2 className="text-lg font-semibold text-gray-200">No mutation data available</h2>
+          <p className="text-gray-400 text-sm">Select a narrative filter above to load intelligence tracking.</p>
+        </GlassCard>
       ) : (
         <>
-          <div className="narrative-tracker__stats">
-            <Card className="narrative-tracker__stat">
-              <span className="narrative-tracker__stat-label">Total Observations</span>
-              <strong>{data.total_observations}</strong>
-            </Card>
-            <Card className="narrative-tracker__stat">
-              <span className="narrative-tracker__stat-label">Mutation Events</span>
-              <strong className="narrative-tracker__stat-accent">{data.mutations.length}</strong>
-            </Card>
-            <Card className="narrative-tracker__stat">
-              <span className="narrative-tracker__stat-label">Current Sentiment</span>
-              <strong className="narrative-tracker__stat-sentiment" style={{ color: SENTIMENT_COLORS[data.timeline[data.timeline.length-1]?.sentiment] || 'var(--ds-color-text-1)' }}>
-                {data.timeline[data.timeline.length-1]?.sentiment || 'N/A'}
-              </strong>
-            </Card>
+          {/* Row of Max 4 KPI Cards */}
+          <div className="netra-grid-12">
+            <div className="col-span-12 md:col-span-6 lg:col-span-3">
+              <KpiCard
+                label="Total Observations"
+                value={data.total_observations}
+                delta={data.timeline.length > 1 ? `${data.timeline.length} epochs` : 'Baseline'}
+                deltaType="positive"
+                subtext="Sample size"
+              />
+            </div>
+            <div className="col-span-12 md:col-span-6 lg:col-span-3">
+              <KpiCard
+                label="Mutation Events"
+                value={data.mutations.length}
+                delta={data.mutations.length > 2 ? 'High Drift' : (data.mutations.length > 0 ? 'Moderate' : 'Stable')}
+                deltaType={data.mutations.length > 2 ? 'warning' : 'neutral'}
+                subtext="Semantic shifts"
+              />
+            </div>
+            <div className="col-span-12 md:col-span-6 lg:col-span-3">
+              <KpiCard
+                label="Current Sentiment"
+                value={data.timeline[data.timeline.length - 1]?.sentiment || 'N/A'}
+                delta="Latest phase"
+                deltaType="neutral"
+                subtext="Current classification"
+              />
+            </div>
+            <div className="col-span-12 md:col-span-6 lg:col-span-3">
+              <KpiCard
+                label="Tracking Velocity"
+                value={data.mutations.length > 2 ? 'High' : (data.mutations.length > 0 ? 'Moderate' : 'Stable')}
+                delta={data.total_observations > 20 ? 'Active' : 'Nominal'}
+                deltaType="positive"
+                subtext="Propagation rate"
+              />
+            </div>
           </div>
-          <Card className="narrative-tracker__panel narrative-tracker__timeline">
-            <header className="narrative-tracker__panel-heading">
-              <div className="narrative-tracker__panel-title"><Activity aria-hidden="true" /><h2>Activity Timeline</h2></div>
-            </header>
+
+          {/* Main Focal Visualization: Activity Timeline */}
+          <ChartCard
+            title="Activity Timeline & Volume"
+            subtitle={`Evolution phases for "${data.narrative}"`}
+            action={<Badge variant="accent">{data.timeline.length} phases</Badge>}
+          >
             {data.timeline.length === 0 ? (
-              <div className="narrative-tracker__empty"><p>No timeline observations available.</p></div>
+              <div className="p-8 text-center text-gray-400">No timeline observations available.</div>
             ) : (
-              <div className="narrative-tracker__chart">
-                <ResponsiveContainer width="100%" height={140}>
+              <div className="h-[260px]">
+                <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={data.timeline}>
                     <defs>
                       <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--ds-color-accent)" stopOpacity={0.35}/>
-                        <stop offset="95%" stopColor="var(--ds-color-accent)" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#9a9ee8" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#9a9ee8" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--ds-color-glass-border)" />
-                    <XAxis dataKey="phase" stroke="var(--ds-color-text-3)" tick={{ fill: 'var(--ds-color-text-3)' }} />
-                    <YAxis stroke="var(--ds-color-text-3)" tick={{ fill: 'var(--ds-color-text-3)' }} />
-                    <Tooltip contentStyle={{ backgroundColor: 'var(--ds-color-bg-elevated)', border: '1px solid var(--ds-color-glass-border)', borderRadius: 'var(--ds-radius-md)', color: 'var(--ds-color-text-1)' }} itemStyle={{ color: 'var(--ds-color-accent-bright)' }} />
-                    <Area type="monotone" dataKey="volume" stroke="var(--ds-color-accent-bright)" fillOpacity={1} fill="url(#colorVolume)" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={true} vertical={false} />
+                    <XAxis dataKey="phase" stroke="#5b5f7a" tick={{ fill: '#8e92b0', fontSize: 11 }} />
+                    <YAxis stroke="#5b5f7a" tick={{ fill: '#8e92b0', fontSize: 11 }} />
+                    <Tooltip contentStyle={{ backgroundColor: 'rgba(15, 17, 35, 0.95)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '12px', color: '#f2f3fa' }} />
+                    <Area type="monotone" dataKey="volume" stroke="#b8bbee" strokeWidth={2} fillOpacity={1} fill="url(#colorVolume)" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             )}
-          </Card>
-          <div className="narrative-tracker__details">
-            <Card className="narrative-tracker__panel">
-              <header className="narrative-tracker__panel-heading">
-                <div className="narrative-tracker__panel-title"><TrendingUp aria-hidden="true" /><h2>Narrative Evolution</h2></div>
-                <Badge variant="accent">{data.mutations.length} events</Badge>
-              </header>
-              {data.mutations.length === 0 ? (
-                <div className="narrative-tracker__empty"><p>No significant mutations detected.</p></div>
-              ) : (
-                <ol className="narrative-tracker__events">
-                  {data.mutations.map((m, i) => (
-                    <li key={i} className="narrative-tracker__event">
-                      <div className="narrative-tracker__event-heading">
-                        <Badge variant="accent">{m.phase}</Badge>
-                        <span className="narrative-tracker__event-time"><Clock aria-hidden="true" />{m.time}</span>
-                      </div>
-                      <div className="narrative-tracker__elements">
-                        {m.new_elements.map((el, j) => <Badge key={j} variant="neutral">+ {el}</Badge>)}
-                      </div>
-                      <p className="narrative-tracker__sentiment">
-                        Sentiment shifted to:{' '}
-                        <strong style={{ color: SENTIMENT_COLORS[m.sentiment_shift] || 'var(--ds-color-text-1)' }}>{m.sentiment_shift}</strong>
-                      </p>
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </Card>
-            <Card className="narrative-tracker__panel narrative-tracker__summary">
-              <header className="narrative-tracker__panel-heading">
-                <div className="narrative-tracker__panel-title"><AlertTriangle aria-hidden="true" /><h2>Intelligence Summary</h2></div>
-              </header>
-              <div className="narrative-tracker__summary-copy">
-                <p>The <strong>{data.narrative}</strong> narrative has been tracked across <strong>{data.total_observations}</strong> observations.</p>
-                <p>
-                  <strong>Key Finding:</strong> The narrative has mutated <strong>{data.mutations.length}</strong> times, introducing new entities and shifting sentiment from
-                  <span> {data.timeline[0]?.sentiment || 'Neutral'}</span> to
-                  <strong style={{ color: SENTIMENT_COLORS[data.timeline[data.timeline.length-1]?.sentiment] }}> {data.timeline[data.timeline.length-1]?.sentiment}</strong>.
-                </p>
-                <p><strong>Recommendation:</strong> Monitor the newly introduced entities for potential escalation.</p>
-              </div>
-            </Card>
+          </ChartCard>
+
+          {/* Secondary Section: 12-Column Grid for Events & Intelligence Summary */}
+          <div className="netra-grid-12">
+            <div className="col-span-12 lg:col-span-7">
+              <GlassCard className="p-6 h-full flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-base font-semibold text-gray-100">Narrative Mutation Events</h2>
+                    <Badge variant="accent">{data.mutations.length} mutations</Badge>
+                  </div>
+                  {data.mutations.length === 0 ? (
+                    <p className="text-gray-400 text-sm py-4">No significant mutations detected.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {data.mutations.slice(0, 5).map((m, i) => (
+                        <div key={i} className="p-4 rounded-xl border border-white/10 bg-white/[0.02] space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Badge variant="accent">{m.phase}</Badge>
+                            <span className="text-xs text-gray-400 flex items-center gap-1">
+                              <Clock className="w-3 h-3" /> {m.time}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {m.new_elements.map((el, j) => (
+                              <Badge key={j} variant="neutral">+ {el}</Badge>
+                            ))}
+                          </div>
+                          <p className="text-xs text-gray-300">
+                            Sentiment shifted to:{' '}
+                            <strong style={{ color: SENTIMENT_COLORS[m.sentiment_shift] || '#f2f3fa' }}>
+                              {m.sentiment_shift}
+                            </strong>
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </GlassCard>
+            </div>
+
+            <div className="col-span-12 lg:col-span-5">
+              <GlassCard className="p-6 h-full space-y-4">
+                <h2 className="text-base font-semibold text-gray-100">Intelligence Synthesis</h2>
+                <div className="space-y-3 text-sm text-gray-300 leading-relaxed">
+                  <p>
+                    The <strong className="text-gray-100">{data.narrative}</strong> narrative has been tracked across <strong className="text-gray-100">{data.total_observations}</strong> telemetry points.
+                  </p>
+                  <div className="p-3 rounded-lg border border-indigo-500/20 bg-indigo-500/5 text-xs text-indigo-200">
+                    <strong>Key Finding:</strong> Mutated <strong>{data.mutations.length}</strong> times, introducing new entities and shifting sentiment from
+                    <span className="text-gray-100"> {data.timeline[0]?.sentiment || 'Neutral'}</span> to
+                    <strong style={{ color: SENTIMENT_COLORS[data.timeline[data.timeline.length-1]?.sentiment] }}> {data.timeline[data.timeline.length-1]?.sentiment}</strong>.
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    <strong>Actionable Insight:</strong> Monitor newly introduced entities for potential escalation across social channels.
+                  </p>
+                </div>
+              </GlassCard>
+            </div>
           </div>
         </>
       )}
-    </section>
+    </div>
   );
 }

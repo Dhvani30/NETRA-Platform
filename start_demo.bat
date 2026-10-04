@@ -2,6 +2,7 @@
 title NETRA Intelligence Platform - Auto Launcher
 echo ==========================================
 echo   NETRA DEMO MODE: INITIALIZING...
+echo   Application Dashboard: http://localhost:5173
 echo ==========================================
 echo.
 

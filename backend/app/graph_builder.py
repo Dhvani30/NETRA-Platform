@@ -10,13 +10,13 @@ from neo4j import GraphDatabase
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(dotenv_path=BASE_DIR / ".env")
 
-MONGO_URI = os.getenv("MONGO_URI") or "mongodb://admin:password123@localhost:27017/?authSource=admin"
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 DB_NAME = os.getenv("DB_NAME", "social_intel")
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "raw_posts")
 
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password123")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
 
 # --- 1. Dynamic Topic Extractor (Fixes the "General..." issue) ---
 def get_topic(text, metadata, platform):
@@ -36,7 +36,7 @@ def get_topic(text, metadata, platform):
         return "Defence & Military"
     if any(x in text_lower for x in ["election", "vote", "parliament", "policy", "government"]):
         return "Politics & Governance"
-    
+
     return "Global Intelligence" # Much better than "General..."
 
 # --- 2. Semantic Narrative Detector (Fixes the duplicate label issue) ---
@@ -55,7 +55,7 @@ def get_narrative(text, topic):
         return "AI Regulation & Deepfakes"
     if any(x in text_lower for x in ["defence", "military", "nato"]):
         return "Defence Modernization"
-    
+
     # Fallback: Combine topic with a generic discourse tag to avoid exact duplicates
     return f"{topic} Discourse"
 
@@ -76,7 +76,7 @@ def extract_entities(text):
 
 def build_knowledge_graph():
     print("[*] Starting NETRA Semantic Knowledge Graph Builder (Massive Mode)...")
-    
+
     try:
         mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
         mongo_client.admin.command('ping')
@@ -84,23 +84,27 @@ def build_knowledge_graph():
     except Exception as e:
         print(f"[!] CRITICAL: Cannot connect to MongoDB. Error: {e}")
         return
-    
+
     # --- BALANCED MASSIVE INGESTION ---
     # Pull up to 500 docs per platform to make the graph look huge and messy
     reddit_docs = list(collection.find({"platform": {"$regex": "^reddit$", "$options": "i"}}).limit(500))
     x_docs = list(collection.find({"platform": {"$regex": "^x$", "$options": "i"}}).limit(500))
     telegram_docs = list(collection.find({"platform": {"$regex": "^telegram$", "$options": "i"}}).limit(500))
-    
-    documents = reddit_docs + x_docs + telegram_docs
-    
-    print(f"[DEBUG] Reddit: {len(reddit_docs)} | X: {len(x_docs)} | Telegram: {len(telegram_docs)}")
-    
-    valid_documents = [doc for doc in documents if (doc.get("text_content") or doc.get("content") or "").strip()]
+    youtube_docs = list(collection.find({"platform": {"$regex": "^youtube$", "$options": "i"}}).limit(500))
+    facebook_docs = list(collection.find({"platform": {"$regex": "^facebook$", "$options": "i"}}).limit(500))
+    instagram_docs = list(collection.find({"platform": {"$regex": "^instagram$", "$options": "i"}}).limit(500))
+
+    documents = reddit_docs + x_docs + telegram_docs + youtube_docs + facebook_docs + instagram_docs
+
+    print(f"[DEBUG] Reddit: {len(reddit_docs)} | X: {len(x_docs)} | Telegram: {len(telegram_docs)} | YouTube: {len(youtube_docs)}")
+
+    valid_documents = [doc for doc in documents if (doc.get("text_content") or doc.get("content") or doc.get("text") or "").strip()]
     print(f"[DEBUG] Total valid posts to graph: {len(valid_documents)}")
-    
+
     if not valid_documents:
         print("[-] No valid documents found.")
-        return
+        mongo_client.close()
+        return 0
 
     try:
         driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
@@ -108,8 +112,9 @@ def build_knowledge_graph():
             session.run("RETURN 1")
     except Exception as e:
         print(f"[!] CRITICAL: Cannot connect to Neo4j. Error: {e}")
-        return
-    
+        mongo_client.close()
+        return 0
+
     print("[*] Clearing existing graph data...")
     with driver.session() as session:
         session.run("MATCH (n) DETACH DELETE n")
@@ -117,12 +122,12 @@ def build_knowledge_graph():
     print("[*] Building massive semantic graph...")
     with driver.session() as session:
         for doc in valid_documents:
-            canonical_id = doc.get("canonical_id") or f"{doc.get('platform', 'unk')}_{str(doc.get('_id'))}"
+            canonical_id = doc.get("canonical_id") or doc.get("post_id") or f"{doc.get('platform', 'unk')}_{str(doc.get('_id'))}"
             platform = (doc.get("platform") or "UNKNOWN").upper()
-            text = doc.get("text_content") or doc.get("content") or ""
-            
+            text = doc.get("text_content") or doc.get("content") or doc.get("text") or ""
+
             snippet = text[:50].replace('\n', ' ') + "..." if len(text) > 50 else text
-            
+
             # Get clean Topic and Narrative
             metadata = doc.get("metadata", {})
             topic_name = get_topic(text, metadata, platform)
@@ -133,13 +138,13 @@ def build_knowledge_graph():
                 "MERGE (p:Post {id: $id}) SET p.name = $snippet, p.text = $text, p.platform = $platform",
                 id=canonical_id, snippet=snippet, text=text[:300], platform=platform
             )
-            
+
             # 2. Platform Node
             session.run(
                 "MATCH (p:Post {id: $id}) MERGE (plat:Platform {name: $name}) MERGE (p)-[:POSTED_ON]->(plat)",
                 id=canonical_id, name=platform
             )
-            
+
             # 3. Topic Node (Broad Category)
             session.run(
                 "MATCH (p:Post {id: $id}) MERGE (t:Topic {name: $name}) MERGE (p)-[:ABOUT]->(t)",
@@ -170,10 +175,10 @@ def build_knowledge_graph():
         with driver.session() as session:
             session.run("CALL gds.graph.drop('netra_graph', {failIfMissing: false}) YIELD graphName")
             session.run("""
-                CALL gds.graph.project('netra_graph', 
+                CALL gds.graph.project('netra_graph',
                     ['Post', 'Platform', 'Topic', 'Narrative', 'Organization', 'Location'],
-                    {POSTED_ON: {orientation: 'UNDIRECTED'}, ABOUT: {orientation: 'UNDIRECTED'}, 
-                     PART_OF: {orientation: 'UNDIRECTED'}, MENTIONS: {orientation: 'UNDIRECTED'}, 
+                    {POSTED_ON: {orientation: 'UNDIRECTED'}, ABOUT: {orientation: 'UNDIRECTED'},
+                     PART_OF: {orientation: 'UNDIRECTED'}, MENTIONS: {orientation: 'UNDIRECTED'},
                      ASSOCIATED_WITH: {orientation: 'UNDIRECTED'}})
             """)
             session.run("CALL gds.pageRank.write('netra_graph', {writeProperty: 'pageRankScore', maxIterations: 20})")
@@ -181,14 +186,206 @@ def build_knowledge_graph():
             print("[+] Advanced GDS PageRank computed!")
     except Exception:
         print("[!] GDS not available. Falling back to basic Degree Centrality.")
-        with driver.session() as session:
-            session.run("MATCH (n) WITH n, count { MATCH (n)--() } AS degree SET n.degreeCentrality = degree")
-        print("[+] Basic Degree Centrality computed.")
+        try:
+            with driver.session() as session:
+                session.run("MATCH (n) WITH n, count { MATCH (n)--() } AS degree SET n.degreeCentrality = degree")
+            print("[+] Basic Degree Centrality computed.")
+        except Exception as e:
+            print(f"[!] Degree centrality note: {e}")
 
     driver.close()
+
+    # Also build user interaction edges
+    try:
+        build_user_edges(mongo_client[DB_NAME])
+    except Exception as e:
+        print(f"[!] Error building user edges: {e}")
+
     mongo_client.close()
     print("[+] Massive Semantic Knowledge Graph successfully built!")
     print("[*] Open http://localhost:7474 to visualize.")
+    return len(valid_documents)
+
+def get_doc_author(doc):
+    """Resolves author id/username cleanly across diverse platform schemas."""
+    if not doc:
+        return None
+    return (
+        doc.get("author_id")
+        or (doc.get("metadata") or {}).get("channel")
+    )
+
+def build_user_edges(db, docs=None):
+    """
+    Creates (:User {id})-[:REPLIED_TO {post_id, ts, platform}]->(:User),
+    (:User)-[:REPOSTED {post_id, ts, platform}]->(:User),
+    and (:User)-[:FORWARDED_FROM {post_id, ts, platform}]->(:User).
+    Uses batched UNWIND with MERGE so re-runs are idempotent.
+    Adds uniqueness constraints on User.id.
+    Resolves parent post author if reply_to_author or repost_of_author is missing.
+    """
+    print("[*] Building User-to-User interaction edges...")
+    collection = db[COLLECTION_NAME]
+
+    try:
+        driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+        with driver.session() as session:
+            session.run("RETURN 1")
+    except Exception as e:
+        print(f"[!] Warning: Cannot connect to Neo4j in build_user_edges ({e}). Continuing.")
+        return 0
+
+    # Ensure uniqueness constraint on User.id
+    try:
+        with driver.session() as session:
+            session.run("CREATE CONSTRAINT user_id_unique IF NOT EXISTS FOR (u:User) REQUIRE u.id IS UNIQUE")
+    except Exception:
+        try:
+            with driver.session() as session:
+                session.run("CREATE CONSTRAINT ON (u:User) ASSERT u.id IS UNIQUE")
+        except Exception:
+            pass
+
+    # Query all posts with interaction indicators if docs not provided
+    if docs is None:
+        interaction_query = {
+            "$or": [
+                {"reply_to_author": {"$ne": None}},
+                {"parent_id": {"$ne": None}},
+                {"forwarded_from": {"$ne": None}},
+                {"repost_of_author": {"$ne": None}},
+                {"repost_of": {"$ne": None}}
+            ]
+        }
+        docs = list(collection.find(interaction_query))
+    else:
+        # Filter provided docs for interaction cues
+        docs = [
+            d for d in docs
+            if d.get("reply_to_author") or d.get("parent_id")
+            or d.get("forwarded_from") or d.get("repost_of_author") or d.get("repost_of")
+        ]
+    print(f"[*] Found {len(docs)} documents with user interaction cues.")
+
+    reply_batch = []
+    forward_batch = []
+    repost_batch = []
+    parent_author_cache = {}
+
+    for doc in docs:
+        src_user = get_doc_author(doc)
+        if not src_user:
+            continue
+
+        platform = (doc.get("platform") or "unknown").lower()
+        post_id = doc.get("canonical_id") or doc.get("post_id") or doc.get("native_id") or str(doc.get("_id"))
+        ts = doc.get("created_at") or doc.get("published_at") or doc.get("ingested_at") or datetime.now(timezone.utc).isoformat()
+
+        # 1. Forwarded edges
+        fwd_user = doc.get("forwarded_from")
+        if fwd_user and str(fwd_user) != str(src_user):
+            forward_batch.append({
+                "source_id": str(src_user),
+                "target_id": str(fwd_user),
+                "post_id": str(post_id),
+                "ts": str(ts),
+                "platform": str(platform)
+            })
+
+        # 2. Reply edges
+        tgt_user = doc.get("reply_to_author")
+        if not tgt_user and doc.get("parent_id"):
+            parent_id = doc.get("parent_id")
+            if parent_id not in parent_author_cache:
+                parent_doc = collection.find_one({
+                    "$or": [
+                        {"post_id": parent_id},
+                        {"canonical_id": parent_id},
+                        {"native_id": parent_id}
+                    ]
+                })
+                parent_author_cache[parent_id] = get_doc_author(parent_doc) if parent_doc else None
+            tgt_user = parent_author_cache.get(parent_id)
+
+        if tgt_user and str(tgt_user) != str(src_user):
+            reply_batch.append({
+                "source_id": str(src_user),
+                "target_id": str(tgt_user),
+                "post_id": str(post_id),
+                "ts": str(ts),
+                "platform": str(platform)
+            })
+
+        # 3. Repost edges
+        repost_tgt = doc.get("repost_of_author")
+        if not repost_tgt and doc.get("repost_of"):
+            repost_id = doc.get("repost_of")
+            if repost_id not in parent_author_cache:
+                parent_doc = collection.find_one({
+                    "$or": [
+                        {"post_id": repost_id},
+                        {"canonical_id": repost_id},
+                        {"native_id": repost_id}
+                    ]
+                })
+                parent_author_cache[repost_id] = get_doc_author(parent_doc) if parent_doc else None
+            repost_tgt = parent_author_cache.get(repost_id)
+
+        if repost_tgt and str(repost_tgt) != str(src_user):
+            repost_batch.append({
+                "source_id": str(src_user),
+                "target_id": str(repost_tgt),
+                "post_id": str(post_id),
+                "ts": str(ts),
+                "platform": str(platform)
+            })
+
+    total_edges = 0
+    BATCH_SIZE = 500
+
+    cypher_replies = """
+    UNWIND $batch AS row
+    MERGE (src:User {id: row.source_id})
+    MERGE (tgt:User {id: row.target_id})
+    MERGE (src)-[r:REPLIED_TO {post_id: row.post_id}]->(tgt)
+    SET r.ts = row.ts, r.platform = row.platform
+    """
+
+    cypher_forwards = """
+    UNWIND $batch AS row
+    MERGE (src:User {id: row.source_id})
+    MERGE (tgt:User {id: row.target_id})
+    MERGE (src)-[r:FORWARDED_FROM {post_id: row.post_id}]->(tgt)
+    SET r.ts = row.ts, r.platform = row.platform
+    """
+
+    cypher_reposts = """
+    UNWIND $batch AS row
+    MERGE (src:User {id: row.source_id})
+    MERGE (tgt:User {id: row.target_id})
+    MERGE (src)-[r:REPOSTED {post_id: row.post_id}]->(tgt)
+    SET r.ts = row.ts, r.platform = row.platform
+    """
+
+    with driver.session() as session:
+        for i in range(0, len(reply_batch), BATCH_SIZE):
+            chunk = reply_batch[i:i + BATCH_SIZE]
+            session.run(cypher_replies, batch=chunk)
+            total_edges += len(chunk)
+
+        for i in range(0, len(forward_batch), BATCH_SIZE):
+            chunk = forward_batch[i:i + BATCH_SIZE]
+            session.run(cypher_forwards, batch=chunk)
+            total_edges += len(chunk)
+
+        for i in range(0, len(repost_batch), BATCH_SIZE):
+            chunk = repost_batch[i:i + BATCH_SIZE]
+            session.run(cypher_reposts, batch=chunk)
+            total_edges += len(chunk)
+
+    driver.close()
+    print(f"[+] build_user_edges complete: {total_edges} edges merged ({len(reply_batch)} replies, {len(forward_batch)} forwards, {len(repost_batch)} reposts).")
+    return total_edges
 
 if __name__ == "__main__":
     build_knowledge_graph()

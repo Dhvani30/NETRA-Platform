@@ -8,19 +8,26 @@ from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient
 import hashlib
 
+import os
+import sys
+from dotenv import load_dotenv
+from app.schema import empty_metrics
+
+load_dotenv()
+
 # --- Configuration ---
-MONGO_URI = "mongodb://admin:password123@localhost:27017/?authSource=admin"
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 DB_NAME = "social_intel"
 COLLECTION_NAME = "raw_posts"
 
 # Chaotic, non-linear narrative distributions (Real data has spikes and dips!)
 NARRATIVES = {
-    "Cyber Attack": {"weight": 28, "platforms": ["X", "Reddit", "YouTube"]}, 
+    "Cyber Attack": {"weight": 28, "platforms": ["X", "Reddit", "YouTube"]},
     "AI Development and Regulation": {"weight": 42, "platforms": ["X", "Reddit", "YouTube"]}, # Spike!
     "Defence and Security": {"weight": 15, "platforms": ["X", "Reddit"]},
     "Financial Technology": {"weight": 35, "platforms": ["X", "Reddit", "YouTube"]}, # Another spike!
-    "South China Sea Tensions": {"weight": 22, "platforms": ["X", "Reddit"]}, 
-    "Startup Ecosystem": {"weight": 18, "platforms": ["X", "Reddit", "YouTube"]} 
+    "South China Sea Tensions": {"weight": 22, "platforms": ["X", "Reddit"]},
+    "Startup Ecosystem": {"weight": 18, "platforms": ["X", "Reddit", "YouTube"]}
 }
 
 SENTIMENTS = ["POSITIVE", "NEGATIVE", "NEUTRAL"]
@@ -71,7 +78,7 @@ CONTENT_TEMPLATES = {
 }
 
 ENTITIES = [
-    "Cisco", "Microsoft", "Google", "CERT-In", "RBI", "SBI", "HDFC", 
+    "Cisco", "Microsoft", "Google", "CERT-In", "RBI", "SBI", "HDFC",
     "NATO", "China", "India", "USA", "Parliament", "SEBI", "FinTech Corp",
     "NeuroTech AI", "SpaceIntel", "Defense Dynamics", "CyberShield"
 ]
@@ -85,65 +92,102 @@ def generate_realistic_content(narrative):
 def generate_sentiment():
     return random.choices(SENTIMENTS, weights=[20, 50, 30])[0]
 
+def hid(value):
+    return hashlib.sha256(str(value).encode()).hexdigest()[:16] if value else None
+
 def generate_posts():
     posts = []
     total_posts = 150
     total_weight = sum(narr["weight"] for narr in NARRATIVES.values())
-    
+
     for narrative_name, narr_config in NARRATIVES.items():
         base_count = int((narr_config["weight"] / total_weight) * total_posts)
         # Add 25% variance for organic messiness
         post_count = base_count + random.randint(-int(base_count * 0.25), int(base_count * 0.25))
         post_count = max(3, post_count)
-        
+
         print(f"Generating {post_count} posts for '{narrative_name}'...")
-        
+
         for i in range(post_count):
             platform = random.choice(narr_config["platforms"])
             hours_ago = random.randint(0, 168)
             published_at = datetime.now(timezone.utc) - timedelta(hours=hours_ago)
-            
-            canonical_id = str(uuid.uuid4())
-            
+
+            post_id = uuid.uuid4().hex[:12]
+            canonical_id = f"synth:{platform.lower()}:{post_id}"
+            text = generate_realistic_content(narrative_name)
+            scored_at = datetime.now(timezone.utc).isoformat()
+            sentiment_label = generate_sentiment()
+
             post = {
                 "canonical_id": canonical_id,
                 "platform": platform.lower(),
-                "author_username": f"user_{random.randint(1000, 9999)}",
-                "text_content": generate_realistic_content(narrative_name),
-                "sentiment_label": generate_sentiment(),
+                "post_id": post_id,
+                "event_type": "post",
+                "parent_id": None,
+                "author_id": hid(f"synthetic-user-{random.randint(1000, 9999)}"),
+                "reply_to_author": None,
+                "text": text,
+                "text_content": text,
+                "sentiment_label": sentiment_label,
                 "narrative_name": narrative_name,
+                "created_at": published_at.isoformat(),
                 "published_at": published_at.isoformat(),
                 "metadata": {
-                    "source_mode": "SEEDED_REALISTIC",
+                    "source_mode": "SYNTH",
                     "narrative_cluster": hashlib.md5(narrative_name.encode()).hexdigest()[:8]
                 },
-                "ingested_at": datetime.now(timezone.utc).isoformat()
+                "source_mode": "SYNTH",
+                "dataset": "netra_synthetic_seed",
+                "source_file": None,
+                "ingested_at": scored_at,
+                "lang": None,
+                "hashtags": [], "mentions": [], "urls": [],
+                "metrics": empty_metrics(),
+                "sentiment": {
+                    "label": sentiment_label, "score": None,
+                    "method": "synthetic_seed", "model_version": "seed-v1",
+                    "confidence": 1.0, "scored_at": scored_at,
+                },
+                "narrative_id": {
+                    "value": hashlib.md5(narrative_name.encode()).hexdigest()[:8],
+                    "method": "synthetic_seed", "model_version": "seed-v1",
+                    "confidence": 1.0, "scored_at": scored_at,
+                },
             }
             posts.append(post)
-    
+
     return posts
 
 def main():
+    if "--confirm" not in sys.argv:
+        print("[!] Safety Stop: Seeding will insert synthetic data into MongoDB.")
+        print("    To proceed, execute explicitly: python app/seed_diverse_data.py --confirm")
+        sys.exit(1)
+
     print("Connecting to MongoDB...")
     client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
     db = client[DB_NAME]
     collection = db[COLLECTION_NAME]
-    
-    print("Generating realistic, varied intelligence data...")
+
+    print("Generating realistic, varied synthetic intelligence data...")
     posts = generate_posts()
-    
-    print("Clearing existing seeded data...")
-    collection.delete_many({"metadata.source_mode": "SEEDED_REALISTIC"})
-    
-    print(f"Inserting {len(posts)} posts with realistic distributions...")
+
+    print("Clearing existing synthetic data (preserving REAL/LIVE data)...")
+    collection.delete_many({
+        "metadata.source_mode": {"$in": ["SYNTH", "SYNTHETIC", "SEEDED_REALISTIC"]},
+        "canonical_id": {"$regex": "_batch\\d+$"}
+    })
+
+    print(f"Inserting {len(posts)} synthetic posts with realistic spread...")
     result = collection.insert_many(posts)
-    
-    print(f"\nSuccess! Inserted {len(result.inserted_ids)} documents.")
+
+    print(f"\nSuccess! Inserted {len(result.inserted_ids)} synthetic documents.")
     print("\nDistribution Summary:")
     for narrative in NARRATIVES.keys():
-        count = collection.count_documents({"narrative_name": narrative})
+        count = collection.count_documents({"narrative_name": narrative, "metadata.source_mode": "SYNTHETIC"})
         print(f"  - {narrative}: {count} posts")
-    
+
     client.close()
 
 if __name__ == "__main__":
