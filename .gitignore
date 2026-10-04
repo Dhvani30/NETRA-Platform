@@ -57,3 +57,5 @@ data/raw/
 # ================================
 .DS_Store
 Thumbs.db
+
+/brag-output
