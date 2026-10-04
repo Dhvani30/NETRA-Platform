@@ -1,14 +1,15 @@
 import os
 import json
 import pymongo
+import hashlib
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from dotenv import load_dotenv
+from app.schema import empty_metrics
+from app.core.env_utils import get_clean_env, is_source_enabled
 
 # --- ROBUST PATH RESOLUTION ---
-# Dynamically finds the root directory (D:\NETRA-Platform) based on this script's location
-# __file__ is ...\backend\app\collectors\reddit_ingestor.py
-# .parent = collectors -> app -> backend -> NETRA-Platform (Root)
+# Dynamically finds the root directory based on this script's location
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 ENV_FILE = BASE_DIR / ".env"
 
@@ -16,29 +17,28 @@ ENV_FILE = BASE_DIR / ".env"
 load_dotenv(dotenv_path=ENV_FILE)
 
 # --- Configuration (STRICT: No hardcoded URLs) ---
-MONGO_URI = os.getenv("MONGO_URI")
-DB_NAME = os.getenv("DB_NAME", "NETRA")
-COLLECTION_NAME = os.getenv("COLLECTION_NAME", "raw_posts")
+MONGO_URI = get_clean_env("MONGO_URI", "mongodb://localhost:27017")
+DB_NAME = get_clean_env("DB_NAME", "social_intel")
+COLLECTION_NAME = get_clean_env("COLLECTION_NAME", "raw_posts")
 REPLAY_FILE = BASE_DIR / "data" / "raw" / "reddit_replay.jsonl"
-
-# Fail Fast: If the URL is missing, stop immediately and tell the user where to look
-if not MONGO_URI:
-    raise ValueError(f"CRITICAL: MONGO_URI is not set in {ENV_FILE}!")
 
 def init_db():
     client = pymongo.MongoClient(MONGO_URI)
     db = client[DB_NAME]
     collection = db[COLLECTION_NAME]
     # Ensure we can upsert efficiently without duplicates
-    collection.create_index("canonical_id", unique=True)
+    collection.create_index("canonical_id", unique=True, sparse=True)
     # Index for the AI engine to quickly find unprocessed posts
     collection.create_index("processed")
     return collection
 
+def hid(value):
+    return hashlib.sha256(str(value).encode()).hexdigest()[:16] if value else None
+
 def generate_high_volume_dataset():
     """Generates a robust, diverse dataset for AI processing and demo stability."""
     base_time = datetime(2026, 9, 25, 12, 0, 0, tzinfo=timezone.utc)
-    
+
     # 30 Realistic, Intelligence-Relevant Posts (SIH Demo Ready)
     templates = [
         ("cybersecurity", "Critical zero-day in Cisco IOS", "Remote code execution vulnerability found in enterprise routers.", "sec_researcher", 450, 89),
@@ -92,12 +92,16 @@ def generate_high_volume_dataset():
     return data
 
 def run_replay_ingestor():
+    if not is_source_enabled("reddit") or not (get_clean_env("ENABLE_DATASET_IMPORT", "0").lower() in ("1", "true", "yes")):
+        print("[!] Dataset import disabled in this build.")
+        return 0
+
     print("[*] Starting NETRA Reddit REPLAY Ingestion Daemon...")
     print("[!] Note: Using deterministic replay layer for guaranteed demo stability.")
-    
+
     collection = init_db()
     REPLAY_FILE.parent.mkdir(parents=True, exist_ok=True)
-    
+
     if not REPLAY_FILE.exists():
         print(f"[*] Generating high-volume deterministic replay dataset at {REPLAY_FILE}...")
         sample_data = generate_high_volume_dataset()
@@ -110,44 +114,53 @@ def run_replay_ingestor():
     count = 0
     with open(REPLAY_FILE, 'r', encoding='utf-8') as f:
         for line in f:
-            if not line.strip(): 
+            if not line.strip():
                 continue
             post = json.loads(line)
-            
+
             post_id = post.get('native_id', 'unknown')
             subreddit = post.get('subreddit', 'unknown')
             canonical_id = f"reddit:{subreddit}:{post_id}"
-            
+
             # UNIFIED SCHEMA: Matches n8n X and Telegram outputs exactly
             doc = {
                 "canonical_id": canonical_id,
                 "platform": "reddit",
+                "post_id": post_id,
                 "native_id": post_id,
+                "event_type": "post",
+                "parent_id": None,
+                "author_id": hid(post.get('author')),
+                "reply_to_author": None,
+                "text": f"{post.get('title', '')} | {post.get('selftext', '')[:500]}",
                 "text_content": f"{post.get('title', '')} | {post.get('selftext', '')[:500]}",
-                "author_username": post.get('author', 'deleted'),
+                "created_at": datetime.fromtimestamp(post.get('created_utc', 0), tz=timezone.utc).isoformat(),
                 "published_at": datetime.fromtimestamp(post.get('created_utc', 0), tz=timezone.utc).isoformat(),
                 "ingested_at": datetime.now(timezone.utc).isoformat(),
+                "lang": None,
+                "hashtags": [], "mentions": [], "urls": [],
                 "url": f"https://reddit.com{post.get('permalink', '')}",
-                "metrics": {
-                    "upvotes": post.get('score', 0),
-                    "comments": post.get('num_comments', 0)
-                },
+                "metrics": empty_metrics(likes=post.get('score', 0), replies=post.get('num_comments', 0)),
                 "metadata": {
                     "subreddit": subreddit,
-                    "source_mode": "REPLAY" # Honest Baseline Doctrine
+                    "source_mode": "IMPORT"
                 },
+                "source_mode": "IMPORT",
+                "dataset": "reddit_replay",
+                "source_file": "data/raw/reddit_replay.jsonl",
                 "processed": False # CRITICAL: Flags this document for the Phase 2 AI Engine
             }
 
             collection.update_one(
-                {"canonical_id": canonical_id}, 
-                {"$set": doc}, 
+                {"canonical_id": canonical_id},
+                {"$set": doc},
                 upsert=True
             )
             count += 1
-            
+
     print(f"[+] Ingestion cycle complete. {count} posts processed/updated to MongoDB.")
     print("[*] Reddit pipeline is now ready for AI/Blockchain processing.")
+    return count
 
 if __name__ == "__main__":
     run_replay_ingestor()

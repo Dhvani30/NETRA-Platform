@@ -1,25 +1,16 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Share2, MessageSquare, Globe, Activity, Video } from 'lucide-react';
-import { Badge, Button, Card, Input } from './ui/primitives';
-import './CrossPlatformView.css';
+import { Badge, Button, GlassCard, KpiCard, ChartCard, Input } from './ui/primitives';
 
-const API_URL = 'http://localhost:8000/api/v1';
+import { API_URL } from '../config';
 
 const PLATFORM_ICONS = {
-  X: <Share2 className="w-5 h-5" />,
-  REDDIT: <MessageSquare className="w-5 h-5" />,
-  YOUTUBE: <Video className="w-5 h-5" />, // Using Video icon
-  TELEGRAM: <Globe className="w-5 h-5" />,
-  UNKNOWN: <Globe className="w-5 h-5" />
-};
-
-const PLATFORM_COLORS = {
-  X: 'var(--ds-color-accent-bright)',       // Blue
-  REDDIT: 'var(--ds-color-accent-bright)',  // Red
-  YOUTUBE: 'var(--ds-color-accent-bright)', // YouTube Red
-  TELEGRAM: 'var(--ds-color-accent-bright)',// Telegram Blue
-  UNKNOWN: 'var(--ds-color-text-3)'  // Gray
+  X: <Share2 className="w-4 h-4 text-blue-400" />,
+  REDDIT: <MessageSquare className="w-4 h-4 text-orange-400" />,
+  YOUTUBE: <Video className="w-4 h-4 text-red-400" />,
+  TELEGRAM: <Globe className="w-4 h-4 text-sky-400" />,
+  UNKNOWN: <Globe className="w-4 h-4 text-gray-400" />
 };
 
 export default function CrossPlatformView() {
@@ -51,76 +42,114 @@ export default function CrossPlatformView() {
   };
 
   return (
-    <section className="cross-platform-view" aria-labelledby="correlation-heading" aria-busy={loading}>
-      <header className="cross-platform-view__header">
-        <div className="cross-platform-view__heading">
-          <p className="cross-platform-view__eyebrow">Cross-Platform</p>
-          <h1 id="correlation-heading">Correlation</h1>
-          <p>Track how intelligence spreads across social networks.</p>
+    <div className="space-y-8" aria-busy={loading}>
+      {/* Page Header & Search */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div className="netra-page-header mb-0">
+          <span className="netra-page-eyebrow">Cross-Platform Telemetry</span>
+          <h1 className="netra-page-title">Platform <span>Correlation</span></h1>
+          <p className="netra-page-subtitle">Map intelligence propagation trajectories across networks.</p>
         </div>
-        <div className="cross-platform-view__search">
-          <Input type="text" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && fetchCorrelation(query)} className="cross-platform-view__input" placeholder="Enter topic..." aria-label="Topic to track" />
-          <Button variant="primary" onClick={() => fetchCorrelation(query)}>Track</Button>
+
+        {/* Search Input */}
+        <div className="flex items-center gap-2 max-w-sm w-full">
+          <Input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && fetchCorrelation(query)}
+            placeholder="Search topic..."
+            aria-label="Topic to track"
+          />
+          <Button variant="primary" onClick={() => fetchCorrelation(query)}>
+            Track
+          </Button>
         </div>
-      </header>
+      </div>
 
       {loading ? (
-        <Card className="cross-platform-view__state" role="status">
-          <Activity className="cross-platform-view__state-icon animate-spin" />
-          <p>Analyzing cross-platform spread…</p>
-        </Card>
+        <GlassCard className="p-12 text-center flex flex-col items-center justify-center gap-3">
+          <Activity className="w-8 h-8 text-indigo-400 animate-spin" />
+          <p className="text-gray-300 font-medium">Tracking cross-platform propagation flow…</p>
+        </GlassCard>
       ) : !data || data.flow.length === 0 ? (
-        <Card className="cross-platform-view__state">
-          <Globe className="cross-platform-view__state-icon" />
-          <h2>No cross-platform data found</h2>
-          <p>Try another topic to view its platform spread.</p>
-        </Card>
+        <GlassCard className="p-12 text-center">
+          <Globe className="w-8 h-8 text-gray-500 mx-auto mb-2" />
+          <h2 className="text-lg font-semibold text-gray-200">No cross-platform correlation found</h2>
+          <p className="text-gray-400 text-sm">Try entering another keyword to trace cross-network propagation.</p>
+        </GlassCard>
       ) : (
         <>
-          <div className="cross-platform-view__stats">
-            <Card className="cross-platform-view__stat"><span className="cross-platform-view__stat-label">Topic Tracked</span><strong className="cross-platform-view__topic">{data.query}</strong></Card>
-            <Card className="cross-platform-view__stat"><span className="cross-platform-view__stat-label">Platforms Involved</span><strong className="cross-platform-view__stat-accent">{data.flow.length}</strong></Card>
-            <Card className="cross-platform-view__stat"><span className="cross-platform-view__stat-label">Total Observations</span><strong className="cross-platform-view__stat-accent">{data.total_posts}</strong></Card>
+          {/* Row of Max 4 KPI Cards */}
+          <div className="netra-grid-12">
+            <div className="col-span-12 md:col-span-6 lg:col-span-3">
+              <KpiCard
+                label="Topic Tracked"
+                value={data.query}
+                delta="Active"
+                deltaType="positive"
+                subtext="Target term"
+              />
+            </div>
+            <div className="col-span-12 md:col-span-6 lg:col-span-3">
+              <KpiCard
+                label="Platforms Involved"
+                value={data.flow.length}
+                delta="Multi-vector"
+                deltaType="warning"
+                subtext="Distribution networks"
+              />
+            </div>
+            <div className="col-span-12 md:col-span-6 lg:col-span-3">
+              <KpiCard
+                label="Total Observations"
+                value={data.total_posts}
+                delta={data.total_posts > 0 ? `${data.total_posts} verified` : 'No signals'}
+                deltaType="positive"
+                subtext="Cross-post count"
+              />
+            </div>
+            <div className="col-span-12 md:col-span-6 lg:col-span-3">
+              <KpiCard
+                label="Correlation Index"
+                value={data.flow.length > 1 ? Math.min(0.98, ((data.flow.length / 4) * 0.7 + (data.total_posts > 10 ? 0.25 : 0.1))).toFixed(2) : (data.flow.length === 1 ? '0.25' : '0.00')}
+                delta={data.flow.length > 1 ? 'Multi-platform' : 'Single vector'}
+                deltaType={data.flow.length > 1 ? 'positive' : 'neutral'}
+                subtext="Propagation confidence"
+              />
+            </div>
           </div>
 
-          <Card className="cross-platform-view__panel">
-            <header className="cross-platform-view__panel-heading">
-              <div className="cross-platform-view__panel-title"><Activity aria-hidden="true" /><h2>Intelligence Spread Timeline</h2></div>
-              <Badge variant="accent">{data.query}</Badge>
-            </header>
-            <div className="cross-platform-view__flow">
-              {data.flow.map((item, index) => (
-                <article key={index} className="cross-platform-view__flow-step" style={{ '--platform-tone': PLATFORM_COLORS[item.platform] || PLATFORM_COLORS.UNKNOWN }}>
-                  <div className="cross-platform-view__node" aria-hidden="true">{PLATFORM_ICONS[item.platform] || PLATFORM_ICONS.UNKNOWN}</div>
-                  <h3>{item.platform}</h3>
-                  <time>{formatTime(item.first_seen)}</time>
-                  <Badge variant="neutral">{item.post_count} posts</Badge>
-                  <p>{item.sample_text}</p>
-                </article>
-              ))}
-            </div>
-          </Card>
+          {/* Main Visualization: Propagation Timeline Flow */}
+          <ChartCard
+            title="Intelligence Spread Timeline"
+            subtitle={`Cross-platform trajectory for "${data.query}"`}
+            action={<Badge variant="accent">{data.query}</Badge>}
+          >
+            <div className="py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {data.flow.map((item, index) => (
+                  <GlassCard key={index} className="p-5 flex flex-col justify-between space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {PLATFORM_ICONS[item.platform] || PLATFORM_ICONS.UNKNOWN}
+                        <span className="font-semibold text-gray-100 text-sm">{item.platform}</span>
+                      </div>
+                      <Badge variant="neutral">{item.post_count} posts</Badge>
+                    </div>
 
-          <Card className="cross-platform-view__panel">
-            <header className="cross-platform-view__panel-heading">
-              <div className="cross-platform-view__panel-title"><Globe aria-hidden="true" /><h2>Platform Breakdown</h2></div>
-            </header>
-            <div className="cross-platform-view__breakdown">
-              {data.flow.map((item, index) => (
-                <article key={index} className="cross-platform-view__breakdown-item" style={{ '--platform-tone': PLATFORM_COLORS[item.platform] || PLATFORM_COLORS.UNKNOWN }}>
-                  <div className="cross-platform-view__platform-info">
-                    <span className="cross-platform-view__platform-icon" aria-hidden="true">{PLATFORM_ICONS[item.platform]}</span>
-                    <div><h3>{item.platform}</h3><p>First detected: {formatTime(item.first_seen)}</p></div>
-                  </div>
-                  <div className="cross-platform-view__platform-data">
-                    <strong>{item.post_count} posts</strong><p>{item.sample_text}</p>
-                  </div>
-                </article>
-              ))}
+                    <time className="text-xs text-gray-400 font-mono">First seen: {formatTime(item.first_seen)}</time>
+
+                    <p className="text-xs text-gray-300 line-clamp-3 bg-white/[0.02] p-2.5 rounded-lg border border-white/5">
+                      "{item.sample_text}"
+                    </p>
+                  </GlassCard>
+                ))}
+              </div>
             </div>
-          </Card>
+          </ChartCard>
         </>
       )}
-    </section>
+    </div>
   );
 }

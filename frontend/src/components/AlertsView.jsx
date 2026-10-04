@@ -1,35 +1,14 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { AlertTriangle, TrendingUp, Globe, Bell, BellOff, RefreshCw, Video } from 'lucide-react';
-import { Badge, Button, Card } from './ui/primitives';
-import './AlertsView.css';
+import { AlertTriangle, TrendingUp, Globe, Bell, RefreshCw, Video } from 'lucide-react';
+import { Badge, Button, GlassCard, KpiCard, DataTable } from './ui/primitives';
 
-const API_URL = 'http://localhost:8000/api/v1';
+import { API_URL } from '../config';
 
 const SEVERITY_STYLES = {
-  CRITICAL: { tone: 'danger', icon: <AlertTriangle className="w-5 h-5" /> },
-  WARNING: { tone: 'warning', icon: <TrendingUp className="w-5 h-5" /> },
-  INFO: { tone: 'info', icon: <Globe className="w-5 h-5" /> }
-};
-
-const TYPE_ICONS = {
-  ACCELERATION: <TrendingUp className="w-6 h-6" />,
-  SENTIMENT: <AlertTriangle className="w-6 h-6" />,
-  ENTITY: <Globe className="w-6 h-6" />
-};
-
-const highlightPlatforms = (text) => {
-  if (!text) return null;
-  const parts = text.split(/(YOUTUBE|X|REDDIT|TELEGRAM)/gi);
-  return parts.map((part, i) => {
-    if (part.toUpperCase() === 'YOUTUBE') {
-      return <span key={i} className="alerts-view__platform alerts-view__platform--youtube"><Video className="w-3 h-3" />YOUTUBE</span>;
-    }
-    if (['X', 'REDDIT', 'TELEGRAM'].includes(part.toUpperCase())) {
-      return <span key={i} className="alerts-view__platform">{part}</span>;
-    }
-    return part;
-  });
+  CRITICAL: { tone: 'danger', icon: <AlertTriangle className="w-4 h-4 text-red-400" /> },
+  WARNING: { tone: 'warning', icon: <TrendingUp className="w-4 h-4 text-amber-400" /> },
+  INFO: { tone: 'info', icon: <Globe className="w-4 h-4 text-sky-400" /> }
 };
 
 export default function AlertsView() {
@@ -71,70 +50,124 @@ export default function AlertsView() {
     return date.toLocaleTimeString();
   };
 
+  const criticalCount = alerts.filter((a) => a.severity === 'CRITICAL').length;
+  const warningCount = alerts.filter((a) => a.severity === 'WARNING').length;
+
+  const alertColumns = [
+    {
+      header: 'Severity',
+      accessorKey: 'severity',
+      cell: (row) => (
+        <Badge variant={SEVERITY_STYLES[row.severity]?.tone || 'neutral'}>
+          {row.severity}
+        </Badge>
+      )
+    },
+    {
+      header: 'Alert Type',
+      accessorKey: 'type',
+      cell: (row) => <span className="font-semibold text-gray-200">{row.type || 'THREAT_SIGNAL'}</span>
+    },
+    {
+      header: 'Message / Event',
+      accessorKey: 'message',
+      cell: (row) => <span className="text-gray-300 max-w-lg line-clamp-1">{row.message}</span>
+    },
+    {
+      header: 'Target Entity',
+      accessorKey: 'entity',
+      cell: (row) => <span className="text-indigo-300 font-mono text-xs">{row.entity || row.narrative || 'System'}</span>
+    },
+    {
+      header: 'Timestamp',
+      accessorKey: 'timestamp',
+      cell: (row) => <span className="text-gray-400 text-xs">{formatTime(row.timestamp)}</span>
+    }
+  ];
+
   return (
-    <section className="alerts-view" aria-labelledby="alerts-heading">
-      <header className="alerts-view__header">
-        <div className="alerts-view__heading-group">
-          <span className="alerts-view__heading-icon" aria-hidden="true"><Bell /></span>
-          <div>
-            <p className="alerts-view__eyebrow">Live monitoring</p>
-            <h1 className="alerts-view__title" id="alerts-heading">Intelligence <span>Alerts</span></h1>
-            <p className="alerts-view__subtitle">{alerts.length} active notifications · Auto-refreshing</p>
-          </div>
+    <div className="space-y-8" aria-busy={loading}>
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div className="netra-page-header mb-0">
+          <span className="netra-page-eyebrow">Real-Time Threat Monitoring</span>
+          <h1 className="netra-page-title">Intelligence <span>Alerts</span></h1>
+          <p className="netra-page-subtitle">{alerts.length} active threat notifications · Auto-refreshing</p>
         </div>
-        <Button variant="secondary" onClick={() => fetchAlerts(true)} disabled={refreshing} loading={refreshing} className="alerts-view__refresh">
+
+        <Button variant="secondary" onClick={() => fetchAlerts(true)} disabled={refreshing} loading={refreshing}>
           <RefreshCw className={refreshing ? 'animate-spin' : ''} />
           {refreshing ? 'Scanning…' : 'Refresh'}
         </Button>
-      </header>
-
-      {!loading && alerts.length > 0 && (
-        <div className="alerts-view__summary" role="group" aria-label="Alert counts by severity">
-          <Badge variant="danger">Critical · {alerts.filter((alert) => alert.severity === 'CRITICAL').length}</Badge>
-          <Badge variant="warning">Warning · {alerts.filter((alert) => alert.severity === 'WARNING').length}</Badge>
-        </div>
-      )}
+      </div>
 
       {loading ? (
-        <Card className="alerts-view__state" role="status">
-          <RefreshCw className="alerts-view__state-icon animate-spin" />
-          <p>Scanning intelligence feeds…</p>
-        </Card>
+        <GlassCard className="p-12 text-center flex flex-col items-center justify-center gap-3">
+          <RefreshCw className="w-8 h-8 text-indigo-400 animate-spin" />
+          <p className="text-gray-300 font-medium">Scanning for threat signals…</p>
+        </GlassCard>
       ) : alerts.length === 0 ? (
-        <Card className="alerts-view__state">
-          <BellOff className="alerts-view__state-icon" />
-          <h2>No active alerts</h2>
-          <p>No active alerts at this time.</p>
-        </Card>
+        <GlassCard className="p-12 text-center">
+          <Bell className="w-8 h-8 text-emerald-400 mx-auto mb-2 opacity-80" />
+          <h2 className="text-lg font-semibold text-gray-200">No active alerts detected</h2>
+          <p className="text-gray-400 text-sm">Threat levels are currently nominal across all monitored channels.</p>
+        </GlassCard>
       ) : (
-        <div className="alerts-view__list" aria-live="polite">
-          {alerts.map((alert) => {
-            const style = SEVERITY_STYLES[alert.severity] || SEVERITY_STYLES.INFO;
-            return (
-              <Card key={alert.id} className={`alerts-view__item alerts-view__item--${style.tone}`}>
-                <div className={`alerts-view__type-icon alerts-view__type-icon--${style.tone}`} aria-hidden="true">
-                  {TYPE_ICONS[alert.type] || <AlertTriangle />}
-                </div>
-                <div className="alerts-view__content">
-                  <div className="alerts-view__item-heading">
-                    <div className="alerts-view__title-group">
-                      <h2 className="alerts-view__item-title">{alert.title}</h2>
-                      <Badge variant={style.tone}>{alert.severity}</Badge>
-                    </div>
-                    <span className="alerts-view__timestamp">{formatTime(alert.timestamp)}</span>
-                  </div>
-                  <p className="alerts-view__description">{highlightPlatforms(alert.description)}</p>
-                  <div className="alerts-view__metadata">
-                    <span className={`alerts-view__severity-icon alerts-view__severity-icon--${style.tone}`} aria-hidden="true">{style.icon}</span>
-                    <span>{alert.type || 'Alert'}</span><span className="alerts-view__separator">·</span>
-                    <span>Detected {formatTime(alert.timestamp)}</span>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+        <>
+          {/* Row of Max 4 KPI Cards */}
+          <div className="netra-grid-12">
+            <div className="col-span-12 md:col-span-6 lg:col-span-3">
+              <KpiCard
+                label="Total Alerts"
+                value={alerts.length}
+                delta="Active"
+                deltaType="neutral"
+                subtext="Notifications queued"
+              />
+            </div>
+            <div className="col-span-12 md:col-span-6 lg:col-span-3">
+              <KpiCard
+                label="Critical Severity"
+                value={criticalCount}
+                delta={criticalCount > 0 ? "Action Required" : "Nominal"}
+                deltaType={criticalCount > 0 ? "negative" : "positive"}
+                subtext="Immediate review"
+              />
+            </div>
+            <div className="col-span-12 md:col-span-6 lg:col-span-3">
+              <KpiCard
+                label="Warnings"
+                value={warningCount}
+                delta="Elevated"
+                deltaType="warning"
+                subtext="Anomaly signals"
+              />
+            </div>
+            <div className="col-span-12 md:col-span-6 lg:col-span-3">
+              <KpiCard
+                label="System Health"
+                value={alerts.length === 0 ? "100%" : `${Math.max(0, Math.round(((alerts.length - criticalCount) / alerts.length) * 100))}%`}
+                delta={criticalCount === 0 ? "Optimal" : `${criticalCount} critical`}
+                deltaType={criticalCount === 0 ? "positive" : "negative"}
+                subtext="Alert severity ratio"
+              />
+            </div>
+          </div>
+
+          {/* Main Table: 56px Row Height, Max 8 Rows Visible + View All */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-100">Live Alert Stream</h2>
+              <div className="flex items-center gap-2">
+                <Badge variant="danger">Critical: {criticalCount}</Badge>
+                <Badge variant="warning">Warning: {warningCount}</Badge>
+              </div>
+            </div>
+
+            <DataTable columns={alertColumns} data={alerts} maxRows={8} />
+          </div>
+        </>
       )}
-    </section>
+    </div>
   );
 }

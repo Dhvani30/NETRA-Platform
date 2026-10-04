@@ -1,172 +1,24 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
-import { Users, Globe, Briefcase, Languages, ShieldCheck, RefreshCw } from 'lucide-react';
-import { Badge, Button, Card } from './ui/primitives';
-import './DemographicsView.css';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis } from 'recharts';
+import { Users, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Badge, Button, GlassCard, KpiCard, ChartCard } from './ui/primitives';
+import { API_URL } from '../config';
 
-const API_URL = 'http://localhost:8000/api/v1';
-
-const COLORS = ['var(--ds-color-accent)', 'var(--ds-color-accent-dim)', 'var(--ds-color-chart-muted-1)', 'var(--ds-color-chart-muted-2)', 'var(--ds-color-chart-muted-3)', 'var(--ds-color-chart-muted-4)', 'var(--ds-color-blue-muted)'];
+const COLORS = ['#9a9ee8', '#7090cc', '#9ba0b8', '#70a888', '#c09060', '#c07070'];
+function Coverage({ dimension }) { return <p className="mt-3 text-xs text-gray-400 border-t border-white/10 pt-3">Coverage: <span className="text-gray-200">{dimension?.coverage ?? 0}%</span> of eligible users · confidence: <span className="text-gray-200">{Math.round((dimension?.confidence ?? 0) * 100)}%</span></p>; }
+function Donut({ dimension }) { const buckets = dimension?.buckets || []; return <div className="h-[250px]"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={buckets} dataKey="users" nameKey="label" cx="50%" cy="50%" innerRadius={48} outerRadius={84} paddingAngle={2}>{buckets.map((entry, index) => <Cell key={entry.label} fill={entry.label.includes('unknown') ? '#596072' : COLORS[index % COLORS.length]} />)}</Pie><Tooltip contentStyle={{ backgroundColor: '#161827', border: '1px solid #454965', borderRadius: '10px' }} /><Legend wrapperStyle={{ color: '#b9bdd2', fontSize: 11 }} /></PieChart></ResponsiveContainer></div>; }
+function Bars({ dimension }) { const buckets = dimension?.buckets || []; return <div className="h-[250px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={buckets} layout="vertical" margin={{ left: 20 }}><XAxis type="number" hide /><YAxis type="category" dataKey="label" width={145} tick={{ fill: '#b9bdd2', fontSize: 11 }} /><Tooltip contentStyle={{ backgroundColor: '#161827', border: '1px solid #454965', borderRadius: '10px' }} /><Bar dataKey="users" fill="#7090cc" radius={[0, 5, 5, 0]} /></BarChart></ResponsiveContainer></div>; }
 
 export default function DemographicsView() {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchDemographics();
-  }, []);
-
-  const fetchDemographics = async () => {
-    setLoading(true);
-    try {
-      const res = await axios.get(`${API_URL}/analytics/demographics?t=${Date.now()}`);
-      setData(res.data);
-    } catch (error) {
-      console.error("Error fetching demographics:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <section className="demographics-view" aria-labelledby="demographics-heading" aria-busy={loading}>
-      <header className="demographics-view__header">
-        <div className="demographics-view__heading">
-          <span className="demographics-view__heading-icon" aria-hidden="true"><Users /></span>
-          <div>
-            <p className="demographics-view__eyebrow">Privacy-Safe</p>
-            <h1 id="demographics-heading">Audience <span>Demographics</span></h1>
-            <p>Aggregated inference with no personally identifiable information.</p>
-          </div>
-        </div>
-        <div className="demographics-view__actions">
-          <Badge variant="success"><ShieldCheck aria-hidden="true" />Aggregated · No PII</Badge>
-          <Button variant="secondary" loading={loading} onClick={fetchDemographics}>
-            <RefreshCw className={loading ? 'animate-spin' : ''} />
-            Refresh Analysis
-          </Button>
-        </div>
-      </header>
-
-      {loading ? (
-        <Card className="demographics-view__state" role="status">
-          <RefreshCw className="demographics-view__state-icon animate-spin" />
-          <p>Inferring audience demographics…</p>
-        </Card>
-      ) : !data || data.total_analyzed === 0 || ![data.regions, data.professions, data.age_brackets, data.languages].some((items) => items?.length > 0) ? (
-        <Card className="demographics-view__state">
-          <Users className="demographics-view__state-icon" />
-          <h2>No demographic data available</h2>
-          <p>No data available for demographic inference.</p>
-        </Card>
-      ) : (
-        <>
-          <div className="demographics-view__stats">
-            <Card className="demographics-view__stat">
-              <span>Total Analyzed</span><strong>{data.total_analyzed}</strong>
-            </Card>
-            <Card className="demographics-view__stat">
-              <span>Active Regions</span><strong className="demographics-view__accent">{data.regions?.length || 0}</strong>
-            </Card>
-            <Card className="demographics-view__stat">
-              <span>Professional Sectors</span><strong className="demographics-view__accent">{data.professions?.length || 0}</strong>
-            </Card>
-            <Card className="demographics-view__stat">
-              <span>Languages Detected</span><strong className="demographics-view__accent">{data.languages?.length || 0}</strong>
-            </Card>
-          </div>
-
-          <div className="demographics-view__grid">
-            <Card className="demographics-view__panel">
-              <header className="demographics-view__panel-heading">
-                <div className="demographics-view__panel-title"><Briefcase aria-hidden="true" /><h2>Professional Interest</h2></div>
-                <Badge variant="neutral">Inferred</Badge>
-              </header>
-              {(data.professions || []).length === 0 ? (
-                <div className="demographics-view__empty"><p>No professional interest data available.</p></div>
-              ) : (
-                <div className="demographics-view__chart">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <PieChart>
-                      <Pie data={data.professions || []} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={46} outerRadius={76} paddingAngle={2}>
-                        {(data.professions || []).map((entry, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
-                      </Pie>
-                      <Tooltip contentStyle={{ backgroundColor: 'var(--ds-color-bg-elevated)', border: '1px solid var(--ds-color-glass-border)', borderRadius: 'var(--ds-radius-md)', color: 'var(--ds-color-text-1)' }} />
-                      <Legend wrapperStyle={{ color: 'var(--ds-color-text-2)' }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </Card>
-
-            <Card className="demographics-view__panel">
-              <header className="demographics-view__panel-heading">
-                <div className="demographics-view__panel-title"><Globe aria-hidden="true" /><h2>Geographic Region</h2></div>
-                <Badge variant="neutral">Inferred</Badge>
-              </header>
-              {(data.regions || []).length === 0 ? (
-                <div className="demographics-view__empty"><p>No regional data available.</p></div>
-              ) : (
-                <div className="demographics-view__chart">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <PieChart>
-                      <Pie data={data.regions || []} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={46} outerRadius={76} paddingAngle={2}>
-                        {(data.regions || []).map((entry, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
-                      </Pie>
-                      <Tooltip contentStyle={{ backgroundColor: 'var(--ds-color-bg-elevated)', border: '1px solid var(--ds-color-glass-border)', borderRadius: 'var(--ds-radius-md)', color: 'var(--ds-color-text-1)' }} />
-                      <Legend wrapperStyle={{ color: 'var(--ds-color-text-2)' }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </Card>
-
-            <Card className="demographics-view__panel">
-              <header className="demographics-view__panel-heading">
-                <div className="demographics-view__panel-title"><Users aria-hidden="true" /><h2>Age Bracket</h2></div>
-                <Badge variant="neutral">Platform Heuristic</Badge>
-              </header>
-              {(data.age_brackets || []).length === 0 ? (
-                <div className="demographics-view__empty"><p>No age bracket data available.</p></div>
-              ) : (
-                <div className="demographics-view__chart">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={data.age_brackets || []} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--ds-color-glass-border)" />
-                      <XAxis type="number" stroke="var(--ds-color-text-3)" tick={{ fill: 'var(--ds-color-text-3)' }} />
-                      <YAxis dataKey="name" type="category" width={72} stroke="var(--ds-color-text-3)" tick={{ fill: 'var(--ds-color-text-2)' }} />
-                      <Tooltip contentStyle={{ backgroundColor: 'var(--ds-color-bg-elevated)', border: '1px solid var(--ds-color-glass-border)', borderRadius: 'var(--ds-radius-md)', color: 'var(--ds-color-text-1)' }} cursor={{ fill: 'var(--ds-color-glass-hover)' }} />
-                      <Bar dataKey="value" fill="var(--ds-color-accent)" radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </Card>
-
-            <Card className="demographics-view__panel">
-              <header className="demographics-view__panel-heading">
-                <div className="demographics-view__panel-title"><Languages aria-hidden="true" /><h2>Language Distribution</h2></div>
-              </header>
-              {(data.languages || []).length === 0 ? (
-                <div className="demographics-view__empty"><p>No language data available.</p></div>
-              ) : (
-                <div className="demographics-view__chart">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={data.languages || []} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--ds-color-glass-border)" />
-                      <XAxis type="number" stroke="var(--ds-color-text-3)" tick={{ fill: 'var(--ds-color-text-3)' }} />
-                      <YAxis dataKey="name" type="category" width={88} stroke="var(--ds-color-text-3)" tick={{ fill: 'var(--ds-color-text-2)' }} />
-                      <Tooltip contentStyle={{ backgroundColor: 'var(--ds-color-bg-elevated)', border: '1px solid var(--ds-color-glass-border)', borderRadius: 'var(--ds-radius-md)', color: 'var(--ds-color-text-1)' }} cursor={{ fill: 'var(--ds-color-glass-hover)' }} />
-                      <Bar dataKey="value" fill="var(--ds-color-accent-bright)" radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </Card>
-          </div>
-        </>
-      )}
-    </section>
-  );
+  const [data, setData] = useState(null); const [loading, setLoading] = useState(true);
+  const fetchDemographics = async () => { setLoading(true); try { setData((await axios.get(`${API_URL}/demographics?t=${Date.now()}`)).data); } catch (error) { console.error('Error fetching demographics:', error); } finally { setLoading(false); } };
+  useEffect(() => { fetchDemographics(); }, []);
+  return <div className="space-y-8" aria-busy={loading}>
+    <div className="flex flex-col md:flex-row md:items-end justify-between gap-4"><div className="netra-page-header mb-0"><span className="netra-page-eyebrow">Privacy-Safe Analysis</span><h1 className="netra-page-title">Audience <span>Demographics</span></h1><p className="netra-page-subtitle">K-anonymous aggregate signals only. No individual profile cards.</p></div><div className="flex items-center gap-2"><Badge variant="success"><ShieldCheck className="w-3.5 h-3.5" /> Aggregated · No PII</Badge><Button variant="secondary" loading={loading} onClick={fetchDemographics}><RefreshCw className={loading ? 'animate-spin' : ''} />Refresh</Button></div></div>
+    {loading ? <GlassCard className="p-12 text-center flex flex-col items-center justify-center gap-3"><RefreshCw className="w-8 h-8 text-indigo-400 animate-spin" /><p className="text-gray-300 font-medium">Preparing aggregate demographic summary…</p></GlassCard> : !data ? <GlassCard className="p-12 text-center"><Users className="w-8 h-8 text-gray-500 mx-auto mb-2" /><h2 className="text-lg font-semibold text-gray-200">No demographic data available</h2><p className="text-gray-400 text-sm">Waiting for enough public signals to form anonymous groups.</p></GlassCard> : <>
+      <div className="netra-grid-12"><div className="col-span-12 md:col-span-6 lg:col-span-3"><KpiCard label="Users in Aggregate" value={data.total_users} delta="Sample" deltaType="positive" subtext="No profiles retained" /></div><div className="col-span-12 md:col-span-6 lg:col-span-3"><KpiCard label="Geographic Coverage" value={`${data.geography?.coverage || 0}%`} delta="Country/state only" deltaType="neutral" subtext="Public location signal" /></div><div className="col-span-12 md:col-span-6 lg:col-span-3"><KpiCard label="Interest Coverage" value={`${data.interests?.coverage || 0}%`} delta="Fixed taxonomy" deltaType="neutral" subtext="Bio/content signals" /></div><div className="col-span-12 md:col-span-6 lg:col-span-3"><KpiCard label="Age Coverage" value={`${data.age?.coverage || 0}%`} delta="Explicit cues only" deltaType="positive" subtext={`${data.age?.excluded_minors || 0} minors excluded`} /></div></div>
+      <div className="netra-grid-12"><div className="col-span-12 lg:col-span-6"><ChartCard title="Professional Interests" subtitle="Fixed taxonomy; aggregate-only"><Donut dimension={data.interests} /><Coverage dimension={data.interests} /></ChartCard></div><div className="col-span-12 lg:col-span-6"><ChartCard title="Linguistic Spread" subtitle="Post and bio language signals"><Donut dimension={data.language} /><Coverage dimension={data.language} /></ChartCard></div><div className="col-span-12 lg:col-span-6"><ChartCard title="Geography" subtitle="Map-style country/state distribution; no precise location"><Bars dimension={data.geography} /><Coverage dimension={data.geography} /></ChartCard></div><div className="col-span-12 lg:col-span-6"><ChartCard title="Age Brackets" subtitle="Explicit self-stated ages only; minors excluded"><Bars dimension={data.age} /><Coverage dimension={data.age} /></ChartCard></div><div className="col-span-12"><ChartCard title="Activity Patterns" subtitle="Posting level and reply/original ratio"><Bars dimension={data.activity_patterns} /><Coverage dimension={data.activity_patterns} /></ChartCard></div><div className="col-span-12"><GlassCard className="p-5 text-sm text-gray-300"><ShieldCheck className="inline w-4 h-4 mr-2 text-emerald-300" />{data.privacy_note}</GlassCard></div></div>
+    </>}
+  </div>;
 }

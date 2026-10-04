@@ -1,0 +1,8 @@
+import { canonicalSourceMode, MODE_LEGEND } from '../../lib/sourceModes';
+
+export function EmptyState({ children = 'No data yet.' }) { return <div className="glass p-6 text-center text-sm text-slate-400">{children}</div>; }
+export function ErrorState({ error, onRetry }) { return <div className="glass p-4 text-sm text-amber-200">Offline — {error?.message || 'Unable to refresh.'} {onRetry && <button className="pill ml-2" onClick={onRetry}>Retry</button>}</div>; }
+export function Skeleton({ className = '' }) { return <div aria-label="Loading" className={`animate-pulse rounded bg-slate-700/40 ${className}`} />; }
+export function ModeBadge({ mode }) { const value = canonicalSourceMode(mode); return <span className={`pill text-[10px] pill--${value.toLowerCase().replaceAll('_', '-')}`} title={MODE_LEGEND[value]}>{value}</span>; }
+export function LastUpdated({ value, interval = 0, imported = false }) { return <span className="text-[10px] text-slate-500">{imported ? 'Static dataset — no auto-refresh' : value ? `Last updated ${new Date(value).toLocaleTimeString()}${interval ? ` (auto every ${Math.round(interval / 1000)}s)` : ''}` : 'No data yet'}</span>; }
+export function ConnectionStatus({ state = 'Connecting', interval, lastUpdated }) { const label = state === 'connected' ? 'Connected (Push SSE)' : state === 'polling' ? `Polling ${Math.round((interval || 0) / 1000)}s` : state === 'offline' ? `Offline (showing data from ${lastUpdated ? new Date(lastUpdated).toLocaleTimeString() : '—'})` : 'Connecting'; return <span className="text-[11px] text-slate-300" title="Connection transport, separate from data freshness">{label}</span>; }

@@ -1,105 +1,129 @@
-# D:\NETRA-Platform\backend\app\pipeline.py
 import os
 import sys
 import subprocess
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+APP_DIR = Path(__file__).resolve().parent
+BACKEND_DIR = APP_DIR.parent
+ROOT_DIR = BACKEND_DIR.parent
+FRONTEND_DIR = ROOT_DIR / "frontend"
 
-# --- Configuration (Read from Environment Variables) ---
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://admin:password123@localhost:27017/?authSource=admin")
+# Ensure backend directory is in sys.path
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+
+# Load environment variables from .env file
+load_dotenv(dotenv_path=ROOT_DIR / ".env")
+
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 DB_NAME = os.getenv("DB_NAME", "social_intel")
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "raw_posts")
 
-# Neo4j Configuration
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
 
 def run_command(script_name):
-    print(f"\n[⚙️] Running {script_name}...")
+    print(f"\n[*] Running {script_name}...")
     try:
-        # Run the script in the same directory
-        result = subprocess.run([sys.executable, script_name], capture_output=True, text=True)
+        script_path = APP_DIR / script_name if not os.path.isabs(script_name) else script_name
+        result = subprocess.run([sys.executable, str(script_path)], capture_output=True, text=True)
         if result.returncode == 0:
-            print(f"[✅] {script_name} completed successfully.")
+            print(f"[+] {script_name} completed successfully.")
         else:
-            print(f"[⚠️] {script_name} had issues, but we will continue.")
+            print(f"[!] {script_name} had issues, but we will continue.")
             print(result.stderr)
     except Exception as e:
         print(f"X Failed to run {script_name}: {e}")
 
-def inject_mock_data_if_empty():
-    """If the DB is empty or old, inject fresh, high-impact demo data."""
-    client = MongoClient(MONGO_URI)
-    db = client[DB_NAME]
-    collection = db[COLLECTION_NAME]
-    
-    # Check if we have recent data (last 24 hours)
-    recent_count = collection.count_documents({
-        "published_at": {"$gte": (datetime.now(timezone.utc).replace(hour=0, minute=0, second=0)).isoformat()}
-    })
+def check_database_status():
+    """Reports current database state without modifying or auto-injecting data."""
+    try:
+        client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+        db = client[DB_NAME]
+        collection = db[COLLECTION_NAME]
+        total_count = collection.count_documents({})
+        real_count = collection.count_documents({"$or": [{"metadata.source_mode": "REAL"}, {"metadata.source_mode": "LIVE"}]})
+        synthetic_count = collection.count_documents({"metadata.source_mode": "SYNTHETIC"})
 
-    if recent_count < 5:
-        print("[X] Database is empty or stale. Injecting fresh Intelligence Data...")
-        collection.delete_many({}) # Wipe old junk
-        
-        fresh_data = [
-            {"canonical_id": "live:x:001", "platform": "x", "author_username": "CyberSecAlert", "text_content": "BREAKING: Critical zero-day vulnerability found in Cisco routers. Patch immediately. #CyberSecurity", "published_at": datetime.now(timezone.utc).isoformat(), "sentiment_label": "NEGATIVE", "narrative_name": "Cyber Attack", "metadata": {"source_mode": "LIVE"}},
-            {"canonical_id": "live:reddit:001", "platform": "reddit", "author_username": "u/GeoAnalyst", "text_content": "Analysis: South China Sea tensions escalate as new naval exercises announced by China and India.", "published_at": datetime.now(timezone.utc).isoformat(), "sentiment_label": "NEGATIVE", "narrative_name": "South China Sea Tensions", "metadata": {"subreddit": "geopolitics"}},
-            {"canonical_id": "live:x:002", "platform": "x", "author_username": "TechPolicy", "text_content": "Parliament passes new AI Regulation Bill. Strict oversight on autonomous systems begins next month.", "published_at": datetime.now(timezone.utc).isoformat(), "sentiment_label": "NEUTRAL", "narrative_name": "AI Development and Regulation", "metadata": {"source_mode": "LIVE"}},
-            {"canonical_id": "live:reddit:002", "platform": "reddit", "author_username": "u/DefenceWatch", "text_content": "NATO announces increased defense spending. Focus on border security and military modernization.", "published_at": datetime.now(timezone.utc).isoformat(), "sentiment_label": "POSITIVE", "narrative_name": "Defence and Security", "metadata": {"subreddit": "defence"}},
-            {"canonical_id": "live:x:003", "platform": "x", "author_username": "FinTechNews", "text_content": "Ransomware gang targets major banks. CERT-In issues urgent advisory for all financial institutions.", "published_at": datetime.now(timezone.utc).isoformat(), "sentiment_label": "NEGATIVE", "narrative_name": "Cyber Attack", "metadata": {"source_mode": "LIVE"}}
-        ]
-        # Multiply data to make graph look bigger
-        for i in range(20):
-            for doc in fresh_data:
-                new_doc = doc.copy()
-                new_doc['canonical_id'] = f"{doc['canonical_id']}_batch{i}"
-                collection.insert_one(new_doc)
-        print(f"[✅] Injected {len(fresh_data)*20} fresh intelligence posts.")
-    else:
-        print(f"[✅] Database already has {recent_count} recent posts. Skipping injection.")
+        print(f"[+] Database Check: {total_count} total posts ({real_count} REAL/LIVE, {synthetic_count} SYNTHETIC).")
+        if total_count == 0:
+            print("[i] Database is empty. To populate initial seed data safely, run: python app/seed_diverse_data.py --confirm")
+    except Exception as e:
+        print(f"[!] Database check warning: {e}")
 
 def main():
-    print(" STARTING NETRA AUTOMATED PIPELINE 🚀")
-    print("="*50)
+    once_mode = "--once" in sys.argv
+    print("=" * 60)
+    print(f" STARTING NETRA PIPELINE ({'ONE-SHOT MODE' if once_mode else 'CONTINUOUS SCHEDULER MODE'})")
+    print("=" * 60)
     print(f" MongoDB URI: {MONGO_URI[:50]}...")
     print(f" Database: {DB_NAME}")
     print(f" Neo4j URI: {NEO4J_URI}")
-    print("="*50)
-    
-    # 1. Ensure Data
-    inject_mock_data_if_empty()
-    
-    # 2. Run AI Analytics (if the file exists)
-    if os.path.exists("analytic_engine.py"):
-        run_command("analytic_engine.py")
-        
-    # 3. Build Graph (if the file exists)
-    if os.path.exists("graph_builder.py"):
-        run_command("graph_builder.py")
-        
-    print("\n" + "="*50)
-    print(" PIPELINE COMPLETE! Your Dashboard is ready.")
+    print("=" * 60)
+
+    # 1. Check Data Status
+    check_database_status()
+
+    scheduler = None
+    if once_mode:
+        # Legacy one-shot sequence
+        if (APP_DIR / "analytic_engine.py").exists():
+            run_command("analytic_engine.py")
+        if (APP_DIR / "graph_builder.py").exists():
+            run_command("graph_builder.py")
+    else:
+        # Continuous sequence: launch APScheduler
+        try:
+            from app.scheduler import start_scheduler
+            scheduler = start_scheduler()
+            print("[+] Continuous Background Scheduler running (Telegram, Reddit, YouTube, Analytics, Graph).")
+        except Exception as e:
+            print(f"[!] Could not start APScheduler: {e}")
+
+    print("\n" + "=" * 60)
     print("Starting Backend and Frontend servers...")
-    
-    # 4. Start Backend
-    print(" Starting FastAPI Backend on port 8000...")
-    subprocess.Popen(["python", "-m", "uvicorn", "main:app", "--reload", "--port", "8000"], cwd="..")
-    
-    time.sleep(2) # Wait for backend to initialize
-    
-    # 5. Start Frontend
-    print(" Starting React Frontend on port 5173...")
-    subprocess.Popen("npm run dev", cwd="../../frontend", shell=True)
-    
-    print("\n NETRA is fully live! Open http://localhost:5173")
-    input("Press Enter to stop all services...")
+
+    backend_proc = None
+    frontend_proc = None
+    try:
+        # Start Backend (FastAPI on :8000)
+        print(" Starting FastAPI Backend on port 8000...")
+        backend_proc = subprocess.Popen(
+            [sys.executable, "-m", "uvicorn", "main:app", "--reload", "--port", "8000"],
+            cwd=str(BACKEND_DIR)
+        )
+        time.sleep(2)  # Wait for backend to initialize
+
+        # Start Frontend (Vite on :5173)
+        if FRONTEND_DIR.exists():
+            print(" Starting React Frontend on port 5173...")
+            frontend_proc = subprocess.Popen("npm run dev", cwd=str(FRONTEND_DIR), shell=True)
+
+        print("\n NETRA is live! Dashboard available at: http://localhost:5173")
+        print(" FastAPI Swagger documentation: http://localhost:8000/docs")
+        try:
+            input("Press Enter to stop all services...\n")
+        except (KeyboardInterrupt, EOFError):
+            pass
+    except KeyboardInterrupt:
+        print("\nStopping services...")
+    finally:
+        if scheduler:
+            try:
+                scheduler.shutdown(wait=False)
+                print("[*] Scheduler stopped.")
+            except Exception:
+                pass
+        if backend_proc:
+            backend_proc.terminate()
+        if frontend_proc:
+            frontend_proc.terminate()
+        print("[*] All NETRA services shutdown.")
 
 if __name__ == "__main__":
     main()
