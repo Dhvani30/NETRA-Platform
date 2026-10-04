@@ -131,7 +131,7 @@ def run_ai_analytics(batch_size=200):
                 cluster_assignments[original_idx] = int(clustered_labels[nn_idx[0]])
 
     # --- IMPROVEMENT 3: Re-number clusters to be contiguous (0, 1, 2, ...) ---
-    # This makes the Neo4j graph cleaner (no gaps like Cluster_0, Cluster_5, Cluster_12)
+    # This makes the graph cleaner (no gaps like Cluster_0, Cluster_5, Cluster_12)
     unique_clusters = sorted(set(cluster_assignments))
     cluster_map = {old: new for new, old in enumerate(unique_clusters)}
     cluster_assignments = [cluster_map[c] for c in cluster_assignments]

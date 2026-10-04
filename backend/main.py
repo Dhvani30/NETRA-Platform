@@ -12,8 +12,6 @@ from bson import json_util
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
-from neo4j import GraphDatabase
-from neo4j.exceptions import Neo4jError
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.errors import PyMongoError
@@ -25,14 +23,13 @@ load_dotenv()
 MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://admin:admin123@cluster0.joyab6x.mongodb.net/NETRA?retryWrites=true&w=majority&authSource=admin")
 MONGO_DB_NAME = os.getenv("DB_NAME", "NETRA")
 MONGO_COLLECTION = os.getenv("COLLECTION_NAME", "raw_posts")
-NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password123")
 
 # Increased timeout to 10s to accommodate cloud database latency
 mongo_client: MongoClient = MongoClient(MONGO_URI, serverSelectionTimeoutMS=10_000)
 raw_posts: Collection = mongo_client[MONGO_DB_NAME][MONGO_COLLECTION]
-neo4j_driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+
+# PostgreSQL Graph Database Connection
+from app.graph_db import close_pool, get_connection
 
 app = FastAPI(title="NETRA Intelligence Platform", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
@@ -40,49 +37,20 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, 
 def _mongo_documents_to_json(documents: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return json.loads(json_util.dumps(documents))
 
-def _primary_label(labels: list[str]) -> str:
-    return labels[0] if labels else "Node"
-
-def _graph_node_id(node: Any, labels: list[str]) -> str:
-    props = dict(node)
-    if props.get("id") is not None: return str(props["id"])
-    if props.get("name") is not None: return f"{_primary_label(labels)}:{props['name']}"
-    return str(node.element_id)
-
-def _graph_node_label(node: Any) -> str:
-    props = dict(node)
-    for key in ("name", "snippet", "id"):
-        if props.get(key) is not None: return str(props[key])
-    text = props.get("text")
-    if text:
-        text_str = str(text)
-        return text_str if len(text_str) <= 80 else f"{text_str[:77]}..."
-    return str(node.element_id)
-
 def _fetch_graph_payload() -> dict[str, list[dict[str, str]]]:
-    nodes_by_id: dict[str, dict[str, str]] = {}
-    links: list[dict[str, str]] = []
-    with neo4j_driver.session() as session:
-        node_records = session.run("MATCH (n) RETURN n AS node, labels(n) AS labels")
-        for record in node_records:
-            node, labels = record["node"], record["labels"]
-            node_id = _graph_node_id(node, labels)
-            nodes_by_id[node_id] = {"id": node_id, "label": _graph_node_label(node), "group": _primary_label(labels)}
-        
-        rel_records = session.run("MATCH (a)-[r]->(b) RETURN a AS source_node, labels(a) AS source_labels, b AS target_node, labels(b) AS target_labels, type(r) AS rel_type")
-        for record in rel_records:
-            source_id = _graph_node_id(record["source_node"], record["source_labels"])
-            target_id = _graph_node_id(record["target_node"], record["target_labels"])
-            if source_id not in nodes_by_id: nodes_by_id[source_id] = {"id": source_id, "label": _graph_node_label(record["source_node"]), "group": _primary_label(record["source_labels"])}
-            if target_id not in nodes_by_id: nodes_by_id[target_id] = {"id": target_id, "label": _graph_node_label(record["target_node"]), "group": _primary_label(record["target_labels"])}
-            links.append({"source": source_id, "target": target_id, "type": str(record["rel_type"])})
-    return {"nodes": list(nodes_by_id.values()), "links": links}
+    with get_connection() as connection, connection.cursor() as cursor:
+        cursor.execute("SELECT id, label, node_type FROM graph_nodes ORDER BY id")
+        nodes = [{"id": row[0], "label": row[1], "group": row[2]} for row in cursor.fetchall()]
+        cursor.execute("SELECT source, target, edge_type FROM graph_edges ORDER BY source, target, edge_type")
+        links = [{"source": row[0], "target": row[1], "type": row[2]} for row in cursor.fetchall()]
+    return {"nodes": nodes, "links": links}
 
 @app.get("/health")
 def health():
     try:
         mongo_client.admin.command("ping")
-        with neo4j_driver.session() as session: session.run("RETURN 1")
+        with get_connection() as connection, connection.cursor() as cursor: 
+            cursor.execute("SELECT 1")
     except Exception as e: 
         print(f"Health check failed: {e}")
         raise HTTPException(status_code=503, detail="Database unreachable")
@@ -408,118 +376,41 @@ def get_demographics():
 
 @app.get("/api/v1/graph/intelligence")
 def get_advanced_network_intelligence():
-    """Extract advanced graph metrics using safe Cypher with coalesce() for missing properties."""
+    """Return graph degree, bridge, and type-group analytics."""
     try:
-        with neo4j_driver.session() as session:
-            # Test connection and get total count
-            total_result = session.run("MATCH (n) RETURN count(n) as count").single()
-            total_nodes = total_result["count"] if total_result else 0
-            
+        with get_connection() as connection, connection.cursor() as cursor:
+            cursor.execute("SELECT COUNT(*) FROM graph_nodes")
+            total_nodes = cursor.fetchone()[0]
             if total_nodes == 0:
-                return {
-                    "influencers": [],
-                    "bridges": [],
-                    "communities": [],
-                    "total_nodes": 0,
-                    "message": "Neo4j database is empty. Run graph_builder.py first."
-                }
-
-            # 1. Top Influencers - uses coalesce() to handle missing properties safely
-            influencer_query = """
-            MATCH (n)
-            OPTIONAL MATCH (n)-[r]-()
-            WITH n, count(r) as degree
-            WHERE degree > 0
-            RETURN coalesce(n.name, n.label, n.id, toString(id(n))) as name,
-                   labels(n)[0] as type,
-                   degree
-            ORDER BY degree DESC
-            LIMIT 5
-            """
-            influencers = []
-            for record in session.run(influencer_query):
-                influencers.append({
-                    "name": record["name"] or "Unknown Node",
-                    "type": record["type"] or "Entity",
-                    "degree": record["degree"]
-                })
-
-            # 2. Bridge Nodes - nodes connected to different label types
-            bridge_query = """
-            MATCH (n)-[]-(a), (n)-[]-(b)
-            WHERE a <> b AND labels(a)[0] <> labels(b)[0]
-            WITH n, count(DISTINCT labels(a)[0] + '|' + labels(b)[0]) as bridge_score
-            WHERE bridge_score > 0
-            RETURN coalesce(n.name, n.label, n.id, toString(id(n))) as name, bridge_score
-            ORDER BY bridge_score DESC
-            LIMIT 5
-            """
-            bridges = []
-            seen_bridge_names = set()
-            try:
-                for record in session.run(bridge_query):
-                    name = record["name"]
-                    if name and name not in seen_bridge_names:
-                        seen_bridge_names.add(name)
-                        bridges.append({
-                            "name": name,
-                            "bridge_score": record["bridge_score"]
-                        })
-            except Exception as e:
-                print(f"Bridge query skipped: {e}")
-            
-            # Fallback: pick diverse high-degree nodes from different labels
+                return {"influencers": [], "bridges": [], "communities": [], "total_nodes": 0,
+                        "message": "PostgreSQL graph is empty. Run graph_builder.py first."}
+            cursor.execute("""SELECT n.label,n.node_type,d.degree FROM graph_nodes n JOIN (
+                SELECT node_id,COUNT(*) degree FROM (SELECT source node_id FROM graph_edges UNION ALL SELECT target FROM graph_edges) i GROUP BY node_id
+                ) d ON d.node_id=n.id ORDER BY d.degree DESC,n.label LIMIT %s""", (5,))
+            influencers = [{"name": r[0] or "Unknown Node", "type": r[1] or "Entity", "degree": r[2]} for r in cursor.fetchall()]
+            cursor.execute("""WITH neighbor_types AS (
+                SELECT e.source node_id,n.node_type FROM graph_edges e JOIN graph_nodes n ON n.id=e.target
+                UNION ALL SELECT e.target,n.node_type FROM graph_edges e JOIN graph_nodes n ON n.id=e.source
+                ), scores AS (SELECT node_id,COUNT(DISTINCT node_type) bridge_score FROM neighbor_types GROUP BY node_id HAVING COUNT(DISTINCT node_type)>1)
+                SELECT n.label,s.bridge_score FROM scores s JOIN graph_nodes n ON n.id=s.node_id ORDER BY s.bridge_score DESC,n.label LIMIT %s""", (5,))
+            bridges = [{"name": r[0], "bridge_score": r[1]} for r in cursor.fetchall()]
             if len(bridges) < 3:
-                diverse_query = """
-                MATCH (n)
-                OPTIONAL MATCH (n)-[r]-()
-                WITH n, labels(n)[0] as label, count(r) as degree
-                WHERE degree > 0
-                RETURN coalesce(n.name, n.label, n.id, toString(id(n))) as name, label, degree
-                ORDER BY label, degree DESC
-                """
-                label_seen = set()
-                for record in session.run(diverse_query):
-                    name = record["name"]
-                    label = record["label"]
-                    if name and name not in seen_bridge_names and label not in label_seen:
-                        seen_bridge_names.add(name)
-                        label_seen.add(label)
-                        bridges.append({
-                            "name": name,
-                            "bridge_score": record["degree"]
-                        })
-                    if len(bridges) >= 5:
-                        break
-
-            # 3. Community Clusters - group by Neo4j label (always exists)
-            community_query = """
-            MATCH (n)
-            RETURN labels(n)[0] as community, count(n) as size
-            ORDER BY size DESC
-            """
-            communities = []
-            for record in session.run(community_query):
-                communities.append({
-                    "community": record["community"] or "Unknown",
-                    "size": record["size"]
-                })
-
-            return {
-                "influencers": influencers,
-                "bridges": bridges,
-                "communities": communities,
-                "total_nodes": total_nodes
-            }
-
-    except Neo4jError as exc:
-        print(f"Neo4j Error: {exc}")
-        raise HTTPException(status_code=500, detail=f"Graph intelligence failed: {str(exc)}") from exc
+                cursor.execute("""SELECT n.label,n.node_type,COUNT(e.node_id) degree FROM graph_nodes n LEFT JOIN (
+                    SELECT source node_id FROM graph_edges UNION ALL SELECT target FROM graph_edges) e ON e.node_id=n.id
+                    GROUP BY n.id ORDER BY n.node_type,degree DESC,n.label""")
+                seen_names = {item["name"] for item in bridges}; seen_types = set()
+                for name, node_type, degree in cursor.fetchall():
+                    if degree and name not in seen_names and node_type not in seen_types:
+                        bridges.append({"name": name, "bridge_score": degree}); seen_names.add(name); seen_types.add(node_type)
+                    if len(bridges) >= 5: break
+            cursor.execute("SELECT node_type,COUNT(*) size FROM graph_nodes GROUP BY node_type ORDER BY size DESC,node_type")
+            communities = [{"community": r[0] or "Unknown", "size": r[1]} for r in cursor.fetchall()]
+            return {"influencers": influencers, "bridges": bridges, "communities": communities, "total_nodes": total_nodes}
     except Exception as exc:
-        print(f"General Error: {exc}")
-        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(exc)}") from exc
+        print(f"PostgreSQL graph intelligence error: {exc}")
+        raise HTTPException(status_code=500, detail=f"Graph intelligence failed: {str(exc)}") from exc
 
 @app.on_event("shutdown")
 def shutdown_event():
-    neo4j_driver.close()
+    close_pool()
     mongo_client.close()

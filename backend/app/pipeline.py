@@ -1,105 +1,114 @@
-# D:\NETRA-Platform\backend\app\pipeline.py
 import os
 import sys
 import subprocess
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
+APP_DIR = Path(__file__).resolve().parent
+BACKEND_DIR = APP_DIR.parent
+ROOT_DIR = BACKEND_DIR.parent
+FRONTEND_DIR = ROOT_DIR / "frontend"
+
+# Ensure backend directory is in sys.path
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+
 # Load environment variables from .env file
-load_dotenv()
+load_dotenv(dotenv_path=ROOT_DIR / ".env")
 
 # --- Configuration (Read from Environment Variables) ---
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://admin:password123@localhost:27017/?authSource=admin")
-DB_NAME = os.getenv("DB_NAME", "social_intel")
+MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://admin:admin123@cluster0.joyab6x.mongodb.net/NETRA?retryWrites=true&w=majority&authSource=admin")
+DB_NAME = os.getenv("DB_NAME", "NETRA")
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "raw_posts")
-
-# Neo4j Configuration
-NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
+DATABASE_URL = os.getenv("DATABASE_URL", "") # Required for PostgreSQL graph
 
 def run_command(script_name):
-    print(f"\n[⚙️] Running {script_name}...")
+    print(f"\n[*] Running {script_name}...")
     try:
-        # Run the script in the same directory
-        result = subprocess.run([sys.executable, script_name], capture_output=True, text=True)
+        script_path = APP_DIR / script_name if not os.path.isabs(script_name) else script_name
+        
+        # 🚨 CRITICAL FIX: Run the subprocess from the BACKEND_DIR 
+        # so that "app" imports (like app.graph_db) resolve correctly.
+        result = subprocess.run(
+            [sys.executable, str(script_path)], 
+            cwd=str(BACKEND_DIR),  # <--- THIS IS THE FIX
+            capture_output=True, 
+            text=True
+        )
+        
         if result.returncode == 0:
-            print(f"[✅] {script_name} completed successfully.")
+            print(f"[+] {script_name} completed successfully.")
         else:
-            print(f"[⚠️] {script_name} had issues, but we will continue.")
+            print(f"[!] {script_name} had issues, but we will continue.")
             print(result.stderr)
     except Exception as e:
-        print(f"X Failed to run {script_name}: {e}")
+        print(f"[X] Failed to run {script_name}: {e}")
 
-def inject_mock_data_if_empty():
-    """If the DB is empty or old, inject fresh, high-impact demo data."""
-    client = MongoClient(MONGO_URI)
-    db = client[DB_NAME]
-    collection = db[COLLECTION_NAME]
-    
-    # Check if we have recent data (last 24 hours)
-    recent_count = collection.count_documents({
-        "published_at": {"$gte": (datetime.now(timezone.utc).replace(hour=0, minute=0, second=0)).isoformat()}
-    })
-
-    if recent_count < 5:
-        print("[X] Database is empty or stale. Injecting fresh Intelligence Data...")
-        collection.delete_many({}) # Wipe old junk
+def check_real_data():
+    """Check and report the amount of real data ingested by the external scraper."""
+    try:
+        client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+        db = client[DB_NAME]
+        collection = db[COLLECTION_NAME]
         
-        fresh_data = [
-            {"canonical_id": "live:x:001", "platform": "x", "author_username": "CyberSecAlert", "text_content": "BREAKING: Critical zero-day vulnerability found in Cisco routers. Patch immediately. #CyberSecurity", "published_at": datetime.now(timezone.utc).isoformat(), "sentiment_label": "NEGATIVE", "narrative_name": "Cyber Attack", "metadata": {"source_mode": "LIVE"}},
-            {"canonical_id": "live:reddit:001", "platform": "reddit", "author_username": "u/GeoAnalyst", "text_content": "Analysis: South China Sea tensions escalate as new naval exercises announced by China and India.", "published_at": datetime.now(timezone.utc).isoformat(), "sentiment_label": "NEGATIVE", "narrative_name": "South China Sea Tensions", "metadata": {"subreddit": "geopolitics"}},
-            {"canonical_id": "live:x:002", "platform": "x", "author_username": "TechPolicy", "text_content": "Parliament passes new AI Regulation Bill. Strict oversight on autonomous systems begins next month.", "published_at": datetime.now(timezone.utc).isoformat(), "sentiment_label": "NEUTRAL", "narrative_name": "AI Development and Regulation", "metadata": {"source_mode": "LIVE"}},
-            {"canonical_id": "live:reddit:002", "platform": "reddit", "author_username": "u/DefenceWatch", "text_content": "NATO announces increased defense spending. Focus on border security and military modernization.", "published_at": datetime.now(timezone.utc).isoformat(), "sentiment_label": "POSITIVE", "narrative_name": "Defence and Security", "metadata": {"subreddit": "defence"}},
-            {"canonical_id": "live:x:003", "platform": "x", "author_username": "FinTechNews", "text_content": "Ransomware gang targets major banks. CERT-In issues urgent advisory for all financial institutions.", "published_at": datetime.now(timezone.utc).isoformat(), "sentiment_label": "NEGATIVE", "narrative_name": "Cyber Attack", "metadata": {"source_mode": "LIVE"}}
-        ]
-        # Multiply data to make graph look bigger
-        for i in range(20):
-            for doc in fresh_data:
-                new_doc = doc.copy()
-                new_doc['canonical_id'] = f"{doc['canonical_id']}_batch{i}"
-                collection.insert_one(new_doc)
-        print(f"[✅] Injected {len(fresh_data)*20} fresh intelligence posts.")
-    else:
-        print(f"[✅] Database already has {recent_count} recent posts. Skipping injection.")
+        total_count = collection.count_documents({})
+        print(f"[✅] Found {total_count} total documents in MongoDB '{COLLECTION_NAME}'.")
+        
+        if total_count == 0:
+            print("[!] WARNING: Database is empty. Ensure your external scraper is running and writing to this MongoDB Atlas cluster.")
+        else:
+            print("[✅] Real data detected. Proceeding with graph sync...")
+            
+        client.close()
+    except Exception as e:
+        print(f"[X] Failed to connect to MongoDB: {e}")
+        print("Please check your MONGO_URI in the .env file.")
 
 def main():
-    print(" STARTING NETRA AUTOMATED PIPELINE 🚀")
-    print("="*50)
-    print(f" MongoDB URI: {MONGO_URI[:50]}...")
+    print("🚀 STARTING NETRA AUTOMATED PIPELINE (READ-ONLY MODE) 🚀")
+    print("="*60)
+    print(f" MongoDB URI: {MONGO_URI[:45]}... (Atlas Cloud)")
     print(f" Database: {DB_NAME}")
-    print(f" Neo4j URI: {NEO4J_URI}")
-    print("="*50)
+    print(f" Collection: {COLLECTION_NAME}")
+    print(f" Graph DB: PostgreSQL (DATABASE_URL)")
+    print("="*60)
     
-    # 1. Ensure Data
-    inject_mock_data_if_empty()
+    # 1. Check for real data from external scraper
+    check_real_data()
     
-    # 2. Run AI Analytics (if the file exists)
-    if os.path.exists("analytic_engine.py"):
+    # 2. Run AI Analytics (OPTIONAL)
+    if os.path.exists(APP_DIR / "analytic_engine.py"):
+        print("\n[ℹ️] Running analytic_engine.py to ensure sentiment/narratives are processed...")
         run_command("analytic_engine.py")
         
-    # 3. Build Graph (if the file exists)
-    if os.path.exists("graph_builder.py"):
+    # 3. Build/Update PostgreSQL Graph (CRUCIAL)
+    if os.path.exists(APP_DIR / "graph_builder.py"):
+        print("\n[ℹ️] Syncing MongoDB data to PostgreSQL graph database...")
         run_command("graph_builder.py")
         
-    print("\n" + "="*50)
-    print(" PIPELINE COMPLETE! Your Dashboard is ready.")
+    print("\n" + "="*60)
+    print("✅ PIPELINE COMPLETE! Dashboard is ready with live data.")
     print("Starting Backend and Frontend servers...")
+    print("="*60)
     
     # 4. Start Backend
-    print(" Starting FastAPI Backend on port 8000...")
-    subprocess.Popen(["python", "-m", "uvicorn", "main:app", "--reload", "--port", "8000"], cwd="..")
+    print("🔄 Starting FastAPI Backend on port 8000...")
+    backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    subprocess.Popen(["python", "-m", "uvicorn", "main:app", "--reload", "--port", "8000"], cwd=backend_dir)
     
-    time.sleep(2) # Wait for backend to initialize
+    time.sleep(3) # Wait for backend to initialize
     
     # 5. Start Frontend
-    print(" Starting React Frontend on port 5173...")
-    subprocess.Popen("npm run dev", cwd="../../frontend", shell=True)
+    print("🔄 Starting React Frontend on port 5173...")
+    frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend"))
+    subprocess.Popen("npm run dev", cwd=frontend_dir, shell=True)
     
-    print("\n NETRA is fully live! Open http://localhost:5173")
-    input("Press Enter to stop all services...")
+    print("\n🌟 NETRA is fully live! Open http://localhost:5173 or http://localhost:5174")
+    print("💡 Tip: To update the graph with newly scraped data, just run this pipeline.py again.")
+    input("\nPress Enter to stop all services...")
 
 if __name__ == "__main__":
     main()
