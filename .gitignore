@@ -63,3 +63,5 @@ backups/
 # ================================
 .DS_Store
 Thumbs.db
+
+brag-output/
