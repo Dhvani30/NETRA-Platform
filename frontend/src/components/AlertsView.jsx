@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { AlertTriangle, TrendingUp, Globe, Bell, RefreshCw, Video } from 'lucide-react';
 import { Badge, Button, GlassCard, KpiCard, DataTable } from './ui/primitives';
+import { WhyNothingArriving } from './ui/dataState';
 
 import { API_URL } from '../config';
 
@@ -92,7 +93,7 @@ export default function AlertsView({ refreshKey = 0 }) {
         <div className="netra-page-header mb-0">
           <span className="netra-page-eyebrow">Real-Time Threat Monitoring</span>
           <h1 className="netra-page-title">Intelligence <span>Alerts</span></h1>
-          <p className="netra-page-subtitle">{alerts.length} active threat notifications · Auto-refreshing</p>
+          <p className="netra-page-subtitle">{loading ? 'Loading alerts.' : `${alerts.length} alerts returned by the API.`}</p>
         </div>
 
         <Button variant="secondary" onClick={() => fetchAlerts(true)} disabled={refreshing} loading={refreshing}>
@@ -107,11 +108,13 @@ export default function AlertsView({ refreshKey = 0 }) {
           <p className="text-gray-300 font-medium">Scanning for threat signals…</p>
         </GlassCard>
       ) : alerts.length === 0 ? (
-        <GlassCard className="p-12 text-center">
-          <Bell className="w-8 h-8 text-emerald-400 mx-auto mb-2 opacity-80" />
-          <h2 className="text-lg font-semibold text-gray-200">No active alerts detected</h2>
-          <p className="text-gray-400 text-sm">Threat levels are currently nominal across all monitored channels.</p>
-        </GlassCard>
+        <div className="space-y-3">
+          <GlassCard className="p-12 text-center">
+            <Bell className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-80" />
+            <h2 className="text-lg font-semibold text-gray-200">The alerts API returned no rows.</h2>
+          </GlassCard>
+          <WhyNothingArriving />
+        </div>
       ) : (
         <>
           {/* Row of Max 4 KPI Cards */}

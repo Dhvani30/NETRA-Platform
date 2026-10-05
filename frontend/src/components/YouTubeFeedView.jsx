@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Play, Eye, Clock, Video, RefreshCw, ExternalLink } from 'lucide-react';
 import { Badge, Button, GlassCard, PillTabs } from './ui/primitives';
+import { WhyNothingArriving } from './ui/dataState';
 import { API_URL } from '../config';
 
 export default function YouTubeFeedView({ refreshKey = 0 }) {
@@ -26,7 +27,7 @@ export default function YouTubeFeedView({ refreshKey = 0 }) {
     fetchYouTubeFeed();
   }, [refreshKey]);
 
-  const topics = ['All Topics', 'Cybersecurity', 'AI Regulation', 'Defense', 'Financial Tech'];
+  const topics = ['All Topics', ...new Set(videos.map(video => video.topic).filter(Boolean))];
 
   const filtered = selectedTopic === 'All Topics'
     ? videos
@@ -52,7 +53,7 @@ export default function YouTubeFeedView({ refreshKey = 0 }) {
             YouTube <span className="text-indigo-300 font-normal">Intelligence Feed</span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Real-time video metadata, transcripts, and sentiment extraction.
+            Video rows returned by the YouTube feed endpoint.
           </p>
         </div>
 
@@ -75,13 +76,13 @@ export default function YouTubeFeedView({ refreshKey = 0 }) {
           <p className="text-gray-300 font-medium">Fetching YouTube video telemetry stream…</p>
         </GlassCard>
       ) : filtered.length === 0 ? (
-        <GlassCard className="p-12 text-center flex flex-col items-center justify-center gap-3">
-          <Video className="w-10 h-10 text-slate-500 opacity-60" />
-          <h2 className="text-base font-medium text-gray-200">No YouTube Records Available</h2>
-          <p className="text-xs text-slate-400 max-w-md">
-            No ingested YouTube videos match the selected filter. Run the YouTube collector script (<code className="font-mono text-indigo-300">python app/collectors/youtube_ingestor.py --once</code>) to fetch live videos.
-          </p>
-        </GlassCard>
+        <div className="space-y-3">
+          <GlassCard className="p-12 text-center flex flex-col items-center justify-center gap-3">
+            <Video className="w-10 h-10 text-slate-500 opacity-60" />
+            <h2 className="text-base font-medium text-gray-200">The YouTube feed returned no rows for this filter.</h2>
+          </GlassCard>
+          <WhyNothingArriving />
+        </div>
       ) : (
         /* Video Grid (3 Columns) */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

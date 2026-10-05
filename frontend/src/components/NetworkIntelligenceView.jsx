@@ -3,6 +3,7 @@ import axios from 'axios';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Network, Users, GitMerge, Layers, RefreshCw, Share2, MessageSquare, Globe, Video } from 'lucide-react';
 import { Badge, Button, GlassCard, KpiCard, ChartCard } from './ui/primitives';
+import { WhyNothingArriving } from './ui/dataState';
 
 import { API_URL } from '../config';
 
@@ -56,11 +57,14 @@ export default function NetworkIntelligenceView({ refreshKey = 0 }) {
           <p className="text-gray-300 font-medium">Computing graph centrality metrics…</p>
         </GlassCard>
       ) : !data || ![data.influencers, data.bridges, data.communities].some((items) => items?.length > 0) ? (
-        <GlassCard className="p-12 text-center">
-          <Network className="w-8 h-8 text-gray-500 mx-auto mb-2" />
-          <h2 className="text-lg font-semibold text-gray-200">No network intelligence data</h2>
-          <p className="text-gray-400 text-sm">{data?.message || 'No graph intelligence data available.'}</p>
-        </GlassCard>
+        <div className="space-y-3">
+          <GlassCard className="p-12 text-center">
+            <Network className="w-8 h-8 text-gray-500 mx-auto mb-2" />
+            <h2 className="text-lg font-semibold text-gray-200">Graph intelligence returned no influencers, bridges, or communities.</h2>
+            {data?.message && <p className="text-gray-400 text-sm">{data.message}</p>}
+          </GlassCard>
+          <WhyNothingArriving />
+        </div>
       ) : (
         <>
           {/* Row of Max 4 KPI Cards */}

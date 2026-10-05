@@ -18,6 +18,8 @@ import {
   MAX_LIVE_FEED_ITEMS
 } from '../utils/liveFeedReducer';
 import { API_URL } from '../config';
+import { WhyNothingArriving } from './ui/dataState';
+import { sourceArrivalReason } from '../lib/emptyReason.js';
 
 const STATUS_HELP = {
   LIVE: 'Collecting continuously from authorized provider connection.',
@@ -172,22 +174,12 @@ export default function LiveFeedView({ onSelectPost, realOnly = true, refreshKey
     return PLATFORM_THEMES[key] || { label: p || 'Unknown', color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.12)', border: 'rgba(148, 163, 184, 0.25)' };
   };
 
-  const getNextRunDisplay = (srcName, srcInfo) => {
-    if (srcInfo.status === 'DISABLED' || srcInfo.status === 'CREDENTIALS_REQUIRED') {
-      return 'Not scheduled';
-    }
-    if (srcName === 'telegram') return 'Continuous poller (~5s)';
-    if (srcInfo.next_run_at) {
-      const diff = new Date(srcInfo.next_run_at).getTime() - nowTs;
-      if (diff > 0) {
-        const sec = Math.round(diff / 1000);
-        return `in ${sec}s`;
-      }
-      return 'imminent';
-    }
-    if (srcName === 'youtube') return 'every ~10m';
-    if (srcName === 'x') return 'every ~15m';
-    return 'scheduled';
+  const getNextRunDisplay = (_srcName, srcInfo) => {
+    if (!srcInfo?.next_run_at) return 'Not scheduled';
+    const diff = new Date(srcInfo.next_run_at).getTime() - nowTs;
+    if (Number.isNaN(diff)) return 'Not scheduled';
+    if (diff > 0) return `in ${Math.round(diff / 1000)}s`;
+    return 'due';
   };
 
   // Stacked chart data formatting
@@ -274,7 +266,7 @@ export default function LiveFeedView({ onSelectPost, realOnly = true, refreshKey
               {Object.values(summaryData?.counts?.['5m'] || {}).reduce((a, b) => a + b, 0)}
             </span>
             <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-0.5">
-              <Activity className="w-3 h-3" /> real-time
+              <Activity className="w-3 h-3" /> {summaryData?.newest_item_age_seconds != null && summaryData.newest_item_age_seconds <= 300 ? 'fresh' : 'collected'}
             </span>
           </div>
           <div className="text-[10px] text-slate-500 mt-1 font-mono">
@@ -337,18 +329,9 @@ export default function LiveFeedView({ onSelectPost, realOnly = true, refreshKey
                 onChange={e => setPlatformFilter(e.target.value)}
               >
                 <option value="">All Platforms</option>
-                <optgroup label="Active Build Scope">
-                  <option value="telegram">Telegram</option>
-                  <option value="youtube">YouTube</option>
-                  <option value="facebook">Facebook (Meta)</option>
-                  <option value="instagram">Instagram (Meta)</option>
-                </optgroup>
-                <optgroup label="Not Enabled in this Build">
-                  <option value="x" disabled>X (Twitter) (Not enabled)</option>
-                  <option value="reddit" disabled>Reddit (Not enabled)</option>
-                  <option value="mastodon" disabled>Mastodon (Not enabled)</option>
-                  <option value="bluesky" disabled>Bluesky (Not enabled)</option>
-                </optgroup>
+                {Object.entries(sourcesData).filter(([, source]) => source.mode !== 'DISABLED' && source.reason !== 'not_enabled_in_this_build').map(([name]) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
               </select>
 
               <select
@@ -383,11 +366,12 @@ export default function LiveFeedView({ onSelectPost, realOnly = true, refreshKey
               <div className="p-12 text-center space-y-3">
                 <AlertCircle className="w-8 h-8 text-slate-500 mx-auto" />
                 <h3 className="text-sm font-medium text-slate-200">No telemetry events found</h3>
-                <p className="text-xs text-slate-400 max-w-md mx-auto">
-                  {platformFilter
-                    ? `No events received for ${platformFilter}. Check if collector is enabled and authorized in .env.`
-                    : 'Awaiting real database inserts. Start collector poller or wait for incoming stream updates.'}
+                <p className="text-sm text-slate-300 max-w-md mx-auto">
+                  {platformFilter && sourcesData[platformFilter]
+                    ? sourceArrivalReason(platformFilter, sourcesData[platformFilter], nowTs)
+                    : 'No live rows match the current filters.'}
                 </p>
+                <WhyNothingArriving sources={sourcesData} />
                 <div className="text-[11px] text-slate-500 font-mono">
                   State: {isStreamConnected ? 'Connected (Push SSE)' : streamState === 'polling' ? 'Polling every 10s' : 'Connecting...'}
                 </div>
@@ -530,18 +514,9 @@ export default function LiveFeedView({ onSelectPost, realOnly = true, refreshKey
                     <YAxis stroke="#5B5F7A" tick={{ fill: '#5B5F7A', fontSize: 10, fontFamily: 'JetBrains Mono' }} allowDecimals={false} />
                     <Tooltip contentStyle={{ backgroundColor: '#0c0e22', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', fontSize: '11px' }} />
                     <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                    {chartPlatforms.includes('telegram') && (
-                      <Area type="monotone" stackId="1" dataKey="telegram" stroke="#38bdf8" fill="url(#tgGrad)" name="Telegram" />
-                    )}
-                    {chartPlatforms.includes('youtube') && (
-                      <Area type="monotone" stackId="1" dataKey="youtube" stroke="#ef4444" fill="url(#ytGrad)" name="YouTube" />
-                    )}
-                    {chartPlatforms.includes('x') && (
-                      <Area type="monotone" stackId="1" dataKey="x" stroke="#a855f7" fill="url(#xGrad)" name="X (Third-Party)" />
-                    )}
-                    {chartPlatforms.includes('reddit') && (
-                      <Area type="monotone" stackId="1" dataKey="reddit" stroke="#f97316" fill="#f97316" fillOpacity={0.2} name="Reddit" />
-                    )}
+                    {chartPlatforms.map((name, index) => (
+                      <Area key={name} type="monotone" stackId="1" dataKey={name} stroke={['#38bdf8', '#ef4444', '#a78bfa', '#34d399', '#fbbf24'][index % 5]} fillOpacity={0.2} name={name} />
+                    ))}
                   </AreaChart>
                 </ResponsiveContainer>
               )}
