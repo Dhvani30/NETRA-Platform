@@ -7,7 +7,7 @@ import { LastUpdated } from './ui/dataState';
 import { StatusBadge } from './ui/primitives';
 
 const display = value => value ? String(value).replaceAll('_', ' ') : 'unknown';
-const isDisabled = source => source?.mode === 'DISABLED' || source?.status === 'DISABLED' || source?.reason === 'not_enabled_in_this_build';
+const isDisabled = source => source?.mode === 'DISABLED' || source?.reason === 'not_enabled_in_this_build';
 const nextRun = source => {
   if (!source?.next_run_at) return null;
   const diff = new Date(source.next_run_at).getTime() - Date.now();
