@@ -110,9 +110,10 @@ def ensure_schema_indexes() -> None:
     except PyMongoError as exc:
         logging.getLogger("NETRA.API").warning("MongoDB unavailable at startup; continuing in degraded mode: %s", exc)
     try:
-        neo4j_driver.verify_connectivity()
+        with get_connection() as connection, connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
     except Exception as exc:
-        logging.getLogger("NETRA.API").warning("Neo4j unavailable at startup; graph fallbacks remain active: %s", exc)
+        logging.getLogger("NETRA.API").warning("PostgreSQL graph database unavailable at startup; graph fallbacks remain active: %s", exc)
 
 def _mongo_documents_to_json(documents: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return json.loads(json_util.dumps(documents))
@@ -574,14 +575,7 @@ def get_sentiment_shifts(threshold: float = Query(.25, ge=.01, le=2.0)):
         return {"threshold": threshold, "shifts": _mongo_documents_to_json(sentiment_shifts(mongo_client[MONGO_DB_NAME], threshold))}
     except PyMongoError as exc:
         raise HTTPException(status_code=500, detail=f"DB Error: {str(exc)}")
-=======
-        with get_connection() as connection, connection.cursor() as cursor: 
-            cursor.execute("SELECT 1")
-    except Exception as e: 
-        print(f"Health check failed: {e}")
-        raise HTTPException(status_code=503, detail="Database unreachable")
-    return {"status": "ok"}
->>>>>>> a8ead338865215b43923c72005cc9123ace1e9bd
+
 
 @app.get("/api/v1/messages")
 def get_messages(limit: int = Query(20, ge=1, le=100)):
