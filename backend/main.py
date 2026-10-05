@@ -20,12 +20,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Response, Request, Header, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-<<<<<<< HEAD
-import networkx as nx
-from neo4j import GraphDatabase
-from neo4j.exceptions import Neo4jError
-=======
->>>>>>> a8ead338865215b43923c72005cc9123ace1e9bd
+
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.errors import PyMongoError
@@ -51,20 +46,10 @@ install_secret_redaction()
 # Load environment variables from .env file
 load_dotenv()
 
-<<<<<<< HEAD
-# --- Configuration (Reads securely from .env via clean loader) ---
-MONGO_URI = get_clean_env("MONGO_URI", "mongodb://localhost:27017")
-MONGO_DB_NAME = get_clean_env("DB_NAME", "social_intel")
-MONGO_COLLECTION = get_clean_env("COLLECTION_NAME", "raw_posts")
-NEO4J_URI = get_clean_env("NEO4J_URI", "bolt://localhost:7687")
-NEO4J_USER = get_clean_env("NEO4J_USER", "neo4j")
-NEO4J_PASSWORD = get_clean_env("NEO4J_PASSWORD", "")
-=======
 # --- Configuration (Reads from .env, falls back to safe defaults) ---
 MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://admin:admin123@cluster0.joyab6x.mongodb.net/NETRA?retryWrites=true&w=majority&authSource=admin")
 MONGO_DB_NAME = os.getenv("DB_NAME", "NETRA")
 MONGO_COLLECTION = os.getenv("COLLECTION_NAME", "raw_posts")
->>>>>>> a8ead338865215b43923c72005cc9123ace1e9bd
 
 # The API must remain usable when local development databases are absent.
 MONGO_TIMEOUT_MS = 750
@@ -133,84 +118,21 @@ def _mongo_documents_to_json(documents: list[dict[str, Any]]) -> list[dict[str, 
     return json.loads(json_util.dumps(documents))
 
 def _fetch_graph_payload() -> dict[str, list[dict[str, str]]]:
-<<<<<<< HEAD
-    try:
-        nodes_by_id: dict[str, dict[str, str]] = {}
-        links: list[dict[str, str]] = []
-        with neo4j_driver.session() as session:
-            node_records = session.run("MATCH (n) RETURN n AS node, labels(n) AS labels")
-            for record in node_records:
-                node, labels = record["node"], record["labels"]
-                node_id = _graph_node_id(node, labels)
-                nodes_by_id[node_id] = {"id": node_id, "label": _graph_node_label(node), "group": _primary_label(labels)}
-
-            rel_records = session.run("MATCH (a)-[r]->(b) RETURN a AS source_node, labels(a) AS source_labels, b AS target_node, labels(b) AS target_labels, type(r) AS rel_type")
-            for record in rel_records:
-                source_id = _graph_node_id(record["source_node"], record["source_labels"])
-                target_id = _graph_node_id(record["target_node"], record["target_labels"])
-                if source_id not in nodes_by_id: nodes_by_id[source_id] = {"id": source_id, "label": _graph_node_label(record["source_node"]), "group": _primary_label(record["source_labels"])}
-                if target_id not in nodes_by_id: nodes_by_id[target_id] = {"id": target_id, "label": _graph_node_label(record["target_node"]), "group": _primary_label(record["target_labels"])}
-                links.append({"source": source_id, "target": target_id, "type": str(record["rel_type"])})
-        if nodes_by_id:
-            return {"nodes": list(nodes_by_id.values()), "links": links}
-    except Exception as e:
-        print(f"Neo4j connection/query unavailable, serving MongoDB live graph payload: {e}")
-
-    # Fallback to MongoDB live graph payload
-    nodes_dict: dict[str, dict[str, Any]] = {}
-    links_list: list[dict[str, Any]] = []
-    posts = list(raw_posts.find({}, {"_id": 0}).limit(60))
-
-    for post in posts:
-        author = post.get("author_id") or "Unknown"
-        platform = (post.get("platform") or "General").title()
-        topic = post.get("topic") or post.get("category") or "General Intelligence"
-
-        author_node_id = f"User:{author}"
-        platform_node_id = f"Platform:{platform}"
-        topic_node_id = f"Topic:{topic}"
-
-        nodes_dict[author_node_id] = {"id": author_node_id, "label": f"@{author}", "group": "User"}
-        nodes_dict[platform_node_id] = {"id": platform_node_id, "label": platform, "group": "Platform"}
-        nodes_dict[topic_node_id] = {"id": topic_node_id, "label": topic, "group": "Topic"}
-
-        links_list.append({"source": author_node_id, "target": platform_node_id, "type": "POSTED_ON"})
-        links_list.append({"source": author_node_id, "target": topic_node_id, "type": "DISCUSSED"})
-
-        text = post.get("text_content") or post.get("text") or ""
-        hashtags = re.findall(r"#(\w+)", text)
-        for ht in hashtags[:3]:
-            ht_id = f"Hashtag:#{ht}"
-            nodes_dict[ht_id] = {"id": ht_id, "label": f"#{ht}", "group": "Hashtag"}
-            links_list.append({"source": topic_node_id, "target": ht_id, "type": "HAS_TAG"})
-
-    return {"nodes": list(nodes_dict.values()), "links": links_list}
-=======
     with get_connection() as connection, connection.cursor() as cursor:
         cursor.execute("SELECT id, label, node_type FROM graph_nodes ORDER BY id")
         nodes = [{"id": row[0], "label": row[1], "group": row[2]} for row in cursor.fetchall()]
         cursor.execute("SELECT source, target, edge_type FROM graph_edges ORDER BY source, target, edge_type")
         links = [{"source": row[0], "target": row[1], "type": row[2]} for row in cursor.fetchall()]
     return {"nodes": nodes, "links": links}
->>>>>>> a8ead338865215b43923c72005cc9123ace1e9bd
 
 @app.get("/health")
 def health():
     mongo_ok = False
-    neo4j_ok = False
     try:
         mongo_client.admin.command("ping")
-<<<<<<< HEAD
         mongo_ok = True
     except Exception as e:
         print(f"Mongo health check failed: {e}")
-
-    try:
-        with neo4j_driver.session() as session:
-            session.run("RETURN 1")
-        neo4j_ok = True
-    except Exception as e:
-        print(f"Neo4j health check failed: {e}")
 
     if not mongo_ok:
         raise HTTPException(status_code=503, detail="Primary Database unreachable")
@@ -219,7 +141,6 @@ def health():
         "status": "ok",
         "databases": {
             "mongodb": "connected",
-            "neo4j": "connected" if neo4j_ok else "offline (fallback mode active)"
         }
     }
 
@@ -1137,347 +1058,6 @@ async def trend_socket(websocket: WebSocket):
 def get_advanced_network_intelligence():
     """Return graph degree, bridge, and type-group analytics."""
     try:
-<<<<<<< HEAD
-        with neo4j_driver.session() as session:
-            # Test connection and get total count
-            total_result = session.run("MATCH (n) RETURN count(n) as count").single()
-            total_nodes = total_result["count"] if total_result else 0
-
-            if total_nodes == 0:
-                return {
-                    "influencers": [],
-                    "bridges": [],
-                    "communities": [],
-                    "total_nodes": 0,
-                    "message": "Neo4j database is empty. Run graph_builder.py first."
-                }
-
-            # 1. Top Influencers - uses coalesce() to handle missing properties safely
-            influencer_query = """
-            MATCH (n)
-            OPTIONAL MATCH (n)-[r]-()
-            WITH n, count(r) as degree
-            WHERE degree > 0
-            RETURN coalesce(n.name, n.label, n.id, toString(id(n))) as name,
-                   labels(n)[0] as type,
-                   degree
-            ORDER BY degree DESC
-            LIMIT 5
-            """
-            influencers = []
-            for record in session.run(influencer_query):
-                influencers.append({
-                    "name": record["name"] or "Unknown Node",
-                    "type": record["type"] or "Entity",
-                    "degree": record["degree"]
-                })
-
-            # 2. Bridge Nodes - nodes connected to different label types
-            bridge_query = """
-            MATCH (n)-[]-(a), (n)-[]-(b)
-            WHERE a <> b AND labels(a)[0] <> labels(b)[0]
-            WITH n, count(DISTINCT labels(a)[0] + '|' + labels(b)[0]) as bridge_score
-            WHERE bridge_score > 0
-            RETURN coalesce(n.name, n.label, n.id, toString(id(n))) as name, bridge_score
-            ORDER BY bridge_score DESC
-            LIMIT 5
-            """
-            bridges = []
-            seen_bridge_names = set()
-            try:
-                for record in session.run(bridge_query):
-                    name = record["name"]
-                    if name and name not in seen_bridge_names:
-                        seen_bridge_names.add(name)
-                        bridges.append({
-                            "name": name,
-                            "bridge_score": record["bridge_score"]
-                        })
-            except Exception as e:
-                print(f"Bridge query skipped: {e}")
-
-            # Fallback: pick diverse high-degree nodes from different labels
-            if len(bridges) < 3:
-                diverse_query = """
-                MATCH (n)
-                OPTIONAL MATCH (n)-[r]-()
-                WITH n, labels(n)[0] as label, count(r) as degree
-                WHERE degree > 0
-                RETURN coalesce(n.name, n.label, n.id, toString(id(n))) as name, label, degree
-                ORDER BY label, degree DESC
-                """
-                label_seen = set()
-                for record in session.run(diverse_query):
-                    name = record["name"]
-                    label = record["label"]
-                    if name and name not in seen_bridge_names and label not in label_seen:
-                        seen_bridge_names.add(name)
-                        label_seen.add(label)
-                        bridges.append({
-                            "name": name,
-                            "bridge_score": record["degree"]
-                        })
-                    if len(bridges) >= 5:
-                        break
-
-            # 3. Community Clusters - group by Neo4j label (always exists)
-            community_query = """
-            MATCH (n)
-            RETURN labels(n)[0] as community, count(n) as size
-            ORDER BY size DESC
-            """
-            communities = []
-            for record in session.run(community_query):
-                communities.append({
-                    "community": record["community"] or "Unknown",
-                    "size": record["size"]
-                })
-
-            return {
-                "influencers": influencers,
-                "bridges": bridges,
-                "communities": communities,
-                "total_nodes": total_nodes
-            }
-
-    except Exception as exc:
-        print(f"Neo4j query/connection issue, serving dynamic MongoDB fallback for graph intelligence: {exc}")
-        posts = list(raw_posts.find({}, {"_id": 0}))
-        authors: dict[str, int] = {}
-        topics: dict[str, int] = {}
-        for p in posts:
-            a = p.get("author_id") or "Unknown"
-            t = p.get("topic") or "General"
-            authors[a] = authors.get(a, 0) + 1
-            topics[t] = topics.get(t, 0) + 1
-
-        top_authors = sorted(authors.items(), key=lambda x: x[1], reverse=True)[:5]
-        top_topics = sorted(topics.items(), key=lambda x: x[1], reverse=True)[:5]
-
-        return {
-            "influencers": [{"name": f"@{a}", "type": "User", "degree": count} for a, count in top_authors],
-            "bridges": [{"name": t, "type": "Topic", "bridges_count": count} for t, count in top_topics[:3]],
-            "communities": [{"community": t, "size": count} for t, count in top_topics],
-            "total_nodes": len(posts),
-            "message": "Graph intelligence operating via live MongoDB data pipeline fallback."
-        }
-
-@app.get("/network/influencers")
-@app.get("/api/v1/network/influencers")
-def get_network_influencers(
-    limit: int = Query(10, ge=1, le=100),
-    platform: str | None = Query(None),
-    from_time: str | None = Query(None, alias="from"),
-    to_time: str | None = Query(None, alias="to"),
-    from_ts: str | None = Query(None),
-    to_ts: str | None = Query(None)
-):
-    """
-    Returns top N users by PageRank (Neo4j GDS if available, otherwise computed with NetworkX from exported edges),
-    plus in-degree, betweenness, and community id (Louvain).
-    Accepts from/to time filters and a platform filter.
-    Returns an empty list when graph has no edges yet.
-    """
-    start_filter = from_time or from_ts
-    end_filter = to_time or to_ts
-
-    edges: list[tuple[str, str]] = []
-
-    # 1. Try to fetch edges from Neo4j User graph
-    try:
-        with neo4j_driver.session() as session:
-            cypher = """
-            MATCH (u1:User)-[r:REPLIED_TO|FORWARDED_FROM]->(u2:User)
-            WHERE ($platform IS NULL OR toLower(r.platform) = toLower($platform))
-              AND ($from_time IS NULL OR r.ts >= $from_time)
-              AND ($to_time IS NULL OR r.ts <= $to_time)
-            RETURN u1.id AS source, u2.id AS target
-            """
-            records = list(session.run(cypher, platform=platform, from_time=start_filter, to_time=end_filter))
-            for rec in records:
-                if rec["source"] and rec["target"] and rec["source"] != rec["target"]:
-                    edges.append((str(rec["source"]), str(rec["target"])))
-    except Exception as e:
-        print(f"Neo4j edge export note: {e}")
-
-    # 2. Resilient fallback: extract interaction edges directly from MongoDB raw_posts
-    if not edges:
-        try:
-            mongo_query: dict[str, Any] = {
-                "$or": [
-                    {"reply_to_author": {"$ne": None}},
-                    {"parent_id": {"$ne": None}},
-                    {"forwarded_from": {"$ne": None}}
-                ]
-            }
-            if platform:
-                mongo_query["platform"] = {"$regex": f"^{platform}$", "$options": "i"}
-
-            docs = list(raw_posts.find(mongo_query))
-            parent_cache: dict[str, str | None] = {}
-
-            for doc in docs:
-                ts = doc.get("created_at") or doc.get("published_at") or doc.get("ingested_at") or ""
-                if start_filter and ts and ts < start_filter:
-                    continue
-                if end_filter and ts and ts > end_filter:
-                    continue
-
-                src = doc.get("author_id")
-                if not src:
-                    continue
-
-                # Forward edge
-                fwd = doc.get("forwarded_from")
-                if fwd and str(fwd) != str(src):
-                    edges.append((str(src), str(fwd)))
-
-                # Reply edge
-                tgt = doc.get("reply_to_author")
-                if not tgt and doc.get("parent_id"):
-                    pid = doc.get("parent_id")
-                    if pid not in parent_cache:
-                        pdoc = raw_posts.find_one({"$or": [{"post_id": pid}, {"canonical_id": pid}, {"native_id": pid}]})
-                        parent_cache[pid] = pdoc.get("author_id") if pdoc else None
-                    tgt = parent_cache.get(pid)
-
-                if tgt and str(tgt) != str(src):
-                    edges.append((str(src), str(tgt)))
-        except Exception as e:
-            print(f"MongoDB fallback edge extraction note: {e}")
-
-    if not edges:
-        return []
-
-    # 3. Compute NetworkX Graph Metrics
-    G = nx.DiGraph()
-    for src, tgt in edges:
-        G.add_edge(src, tgt)
-
-    if G.number_of_nodes() == 0:
-        return []
-
-    try:
-        pagerank = nx.pagerank(G, alpha=0.85)
-    except Exception:
-        pagerank = {n: 1.0 / len(G) for n in G.nodes()}
-
-    in_degree = dict(G.in_degree())
-    try:
-        betweenness = nx.betweenness_centrality(G)
-    except Exception:
-        betweenness = {n: 0.0 for n in G.nodes()}
-
-    community_map: dict[str, int] = {}
-    try:
-        undirected_G = G.to_undirected()
-        communities = nx.algorithms.community.louvain_communities(undirected_G)
-        for c_idx, comm in enumerate(communities):
-            for node in comm:
-                community_map[str(node)] = c_idx
-    except Exception:
-        for c_idx, comp in enumerate(nx.weakly_connected_components(G)):
-            for node in comp:
-                community_map[str(node)] = c_idx
-
-    ranked_users = sorted(pagerank.items(), key=lambda x: x[1], reverse=True)[:limit]
-    influencers = []
-    for user_id, pr_val in ranked_users:
-        influencers.append({
-            "user": user_id,
-            "pagerank": round(pr_val, 5),
-            "in_degree": in_degree.get(user_id, 0),
-            "betweenness": round(betweenness.get(user_id, 0.0), 5),
-            "community_id": community_map.get(str(user_id), 0)
-        })
-
-    return influencers
-
-@app.get("/network/cascade/{narrative_id}")
-@app.get("/api/v1/network/cascade/{narrative_id}")
-def get_network_cascade(narrative_id: str):
-    """
-    Time-ordered list of {user, community, platform, ts} showing who posted first
-    and who replied or forwarded after, so the frontend can replay narrative spread.
-    Returns empty list if no edges or posts are found.
-    """
-    try:
-        regex_pattern = re.compile(re.escape(narrative_id), re.IGNORECASE)
-        query = {
-            "$or": [
-                {"narrative_name": regex_pattern},
-                {"narrative_id": regex_pattern},
-                {"narrative_cluster": regex_pattern},
-                {"ai_analysis.narrative_cluster": regex_pattern},
-                {"topic": regex_pattern},
-                {"category": regex_pattern}
-            ]
-        }
-        posts = list(raw_posts.find(query).limit(200))
-        if not posts:
-            posts = list(raw_posts.find({"$or": [{"text_content": regex_pattern}, {"text": regex_pattern}]}).limit(100))
-
-        if not posts:
-            return []
-
-        # Build community graph for matching narrative posts
-        G = nx.Graph()
-        for p in posts:
-            author = p.get("author_id") or "unknown"
-            fwd = p.get("forwarded_from")
-            reply = p.get("reply_to_author")
-            if fwd:
-                G.add_edge(str(author), str(fwd))
-            if reply:
-                G.add_edge(str(author), str(reply))
-            if not fwd and not reply:
-                G.add_node(str(author))
-
-        community_map: dict[str, int] = {}
-        try:
-            communities = nx.algorithms.community.louvain_communities(G)
-            for c_idx, comm in enumerate(communities):
-                for node in comm:
-                    community_map[str(node)] = c_idx
-        except Exception:
-            for c_idx, comp in enumerate(nx.connected_components(G)):
-                for node in comp:
-                    community_map[str(node)] = c_idx
-
-        events = []
-        for p in posts:
-            author = p.get("author_id") or "unknown"
-            ts = p.get("created_at") or p.get("published_at") or p.get("ingested_at") or datetime.now(timezone.utc).isoformat()
-            platform = (p.get("platform") or "unknown").lower()
-            post_id = p.get("canonical_id") or p.get("post_id") or p.get("native_id") or str(p.get("_id"))
-
-            action = "post"
-            if p.get("forwarded_from"):
-                action = "forward"
-            elif p.get("reply_to_author") or p.get("parent_id"):
-                action = "reply"
-
-            events.append({
-                "user": str(author),
-                "community": community_map.get(str(author), 0),
-                "platform": platform,
-                "ts": str(ts),
-                "action": action,
-                "post_id": str(post_id)
-            })
-
-        # Sort chronologically by timestamp
-        events.sort(key=lambda x: x["ts"])
-        return events
-    except Exception as e:
-        print(f"Error computing cascade for narrative {narrative_id}: {e}")
-        return []
-
-@app.on_event("shutdown")
-def shutdown_event():
-    neo4j_driver.close()
-    mongo_client.close()
-=======
         with get_connection() as connection, connection.cursor() as cursor:
             cursor.execute("SELECT COUNT(*) FROM graph_nodes")
             total_nodes = cursor.fetchone()[0]
@@ -1514,4 +1094,4 @@ def shutdown_event():
 def shutdown_event():
     close_pool()
     mongo_client.close()
->>>>>>> a8ead338865215b43923c72005cc9123ace1e9bd
+
