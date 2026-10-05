@@ -43,6 +43,24 @@ test('addEventToFeed caps strictly at MAX_LIVE_FEED_ITEMS (200)', () => {
   assert.strictEqual(feed[feed.length - 1].post_id, 'post-50');
 });
 
+test('addEventsBatchToFeed dedupes, caps at 200, and keeps newest first', () => {
+  const seeded = [{ post_id: 'keep', text: 'old' }];
+  const merged = addEventsBatchToFeed(seeded, [
+    { post_id: 'keep', text: 'duplicate' },
+    { post_id: 'newer', text: 'n' },
+  ]);
+  assert.strictEqual(merged.length, 2);
+  assert.strictEqual(merged[0].post_id, 'newer');
+  assert.strictEqual(merged[1].post_id, 'keep');
+
+  const batch = [];
+  for (let i = 0; i < 250; i += 1) batch.push({ post_id: `id-${i}` });
+  const capped = addEventsBatchToFeed([], batch);
+  assert.strictEqual(capped.length, MAX_LIVE_FEED_ITEMS);
+  assert.strictEqual(capped[0].post_id, 'id-249');
+  assert.strictEqual(capped[capped.length - 1].post_id, 'id-50');
+});
+
 test('addEventToFeed flags new item with _isNew', () => {
   const feed = [];
   const updated = addEventToFeed(feed, { post_id: 'new-1', text: 'alert' });

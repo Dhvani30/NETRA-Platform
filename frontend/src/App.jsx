@@ -198,6 +198,13 @@ function App() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   useEffect(() => {
+    if (!refreshKey) return;
+    if (activeScreen === 'analytics' || activeScreen === 'graph' || activeScreen === 'investigate') {
+      fetchData({ background: true });
+    }
+  }, [refreshKey, activeScreen, fetchData]);
+
+  useEffect(() => {
     if (!loadError) return undefined;
     const timer = setInterval(() => { fetchData({ background: true }); }, 10000);
     return () => clearInterval(timer);
@@ -569,16 +576,16 @@ function App() {
               </div>
             )}
 
-            {activeScreen === 'live_feed' && <LiveFeedView key={refreshKey} onSelectPost={setSelectedProvenancePost} realOnly={realOnly} />}
-            {activeScreen === 'alerts' && <AlertsView key={refreshKey} />}
-            {activeScreen === 'youtube' && <YouTubeFeedView key={refreshKey} />}
-            {activeScreen === 'meta' && <MetaFeedView key={refreshKey} />}
-            {activeScreen === 'sources' && <SourcesTimelineView key={refreshKey} />}
-            {activeScreen === 'watchlist' && <WatchlistView key={refreshKey} />}
-            {activeScreen === 'coverage' && <CoverageView key={refreshKey} />}
-            {activeScreen === 'demographics' && <DemographicsView key={refreshKey} />}
-            {activeScreen === 'sentiment_timeline' && <SentimentTimelineView key={refreshKey} />}
-            {activeScreen === 'trends' && <TrendsView key={refreshKey} />}
+            {activeScreen === 'live_feed' && <LiveFeedView refreshKey={refreshKey} onSelectPost={setSelectedProvenancePost} realOnly={realOnly} />}
+            {activeScreen === 'alerts' && <AlertsView refreshKey={refreshKey} />}
+            {activeScreen === 'youtube' && <YouTubeFeedView refreshKey={refreshKey} />}
+            {activeScreen === 'meta' && <MetaFeedView refreshKey={refreshKey} />}
+            {activeScreen === 'sources' && <SourcesTimelineView refreshKey={refreshKey} />}
+            {activeScreen === 'watchlist' && <WatchlistView refreshKey={refreshKey} />}
+            {activeScreen === 'coverage' && <CoverageView refreshKey={refreshKey} />}
+            {activeScreen === 'demographics' && <DemographicsView refreshKey={refreshKey} />}
+            {activeScreen === 'sentiment_timeline' && <SentimentTimelineView refreshKey={refreshKey} />}
+            {activeScreen === 'trends' && <TrendsView refreshKey={refreshKey} />}
             {activeScreen === 'investigate' && (
               <InvestigationView
                 investigationData={investigationData || { query: searchQuery, documents: messages }}
@@ -588,10 +595,10 @@ function App() {
                 onSelectPost={setSelectedProvenancePost}
               />
             )}
-            {activeScreen === 'mutation' && <NarrativeTracker key={refreshKey} />}
-            {activeScreen === 'correlation' && <CrossPlatformView key={refreshKey} />}
-            {activeScreen === 'graph' && <NetworkGraph graphData={graphData} key={refreshKey} />}
-            {activeScreen === 'network_intel' && <NetworkIntelligenceView key={refreshKey} />}
+            {activeScreen === 'mutation' && <NarrativeTracker refreshKey={refreshKey} />}
+            {activeScreen === 'correlation' && <CrossPlatformView refreshKey={refreshKey} />}
+            {activeScreen === 'graph' && <NetworkGraph graphData={graphData} refreshKey={refreshKey} />}
+            {activeScreen === 'network_intel' && <NetworkIntelligenceView refreshKey={refreshKey} />}
           </div>
         </main>
       </div>

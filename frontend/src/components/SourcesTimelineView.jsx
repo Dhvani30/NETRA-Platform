@@ -20,7 +20,7 @@ const STATUS_HELP = {
   ERROR: 'Collection needs attention.',
 };
 
-export default function SourcesTimelineView() {
+export default function SourcesTimelineView({ refreshKey = 0 }) {
   const [sources, setSources] = useState({});
   const [data, setData] = useState([]);
   const [platform, setPlatform] = useState('');
@@ -77,7 +77,7 @@ export default function SourcesTimelineView() {
   useEffect(() => {
     load().catch(() => { setSources({}); setData([]); });
     fetchIntegrity();
-  }, [load, fetchIntegrity]);
+  }, [load, fetchIntegrity, refreshKey]);
 
   // When in live mode, refresh timeline when new live events arrive or every 4s
   const onStreamEvent = useCallback(() => {

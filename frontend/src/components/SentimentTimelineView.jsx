@@ -15,9 +15,9 @@ function Chart({ title, data, keys, shifts, onPoint }) {
   </div></div>;
 }
 
-export default function SentimentTimelineView() {
+export default function SentimentTimelineView({ refreshKey = 0 }) {
   const [timeline, setTimeline] = useState([]), [shifts, setShifts] = useState([]), [point, setPoint] = useState(null);
-  useEffect(() => { Promise.all([axios.get(`${API_URL}/sentiment/timeline`), axios.get(`${API_URL}/sentiment/shifts`)]).then(([a,b]) => { setTimeline(a.data.timeline || []); setShifts(b.data.shifts || []); }).catch(console.error); }, []);
+  useEffect(() => { Promise.all([axios.get(`${API_URL}/sentiment/timeline`), axios.get(`${API_URL}/sentiment/shifts`)]).then(([a,b]) => { setTimeline(a.data.timeline || []); setShifts(b.data.shifts || []); }).catch(console.error); }, [refreshKey]);
   const data = useMemo(() => timeline.map((row) => ({ time: row.bucket, ...row.emotions, ...row.polarity, ...row.stance })), [timeline]);
   const selected = shifts.find((shift) => shift.bucket === point) || shifts[0];
   return <div className="space-y-5"><div className="flex justify-between items-center"><h1 className="text-xl text-white font-light">Sentiment <span className="text-indigo-300">Timeline</span></h1><span className="pill text-xs">{timeline.length} windows</span></div>

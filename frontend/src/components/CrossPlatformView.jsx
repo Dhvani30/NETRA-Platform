@@ -13,7 +13,7 @@ const PLATFORM_ICONS = {
   UNKNOWN: <Globe className="w-4 h-4 text-gray-400" />
 };
 
-export default function CrossPlatformView() {
+export default function CrossPlatformView({ refreshKey = 0 }) {
   const [query, setQuery] = useState('cisco');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -33,7 +33,7 @@ export default function CrossPlatformView() {
 
   useEffect(() => {
     fetchCorrelation(query);
-  }, []);
+  }, [refreshKey]);
 
   const formatTime = (timestamp) => {
     if (!timestamp) return 'Unknown';

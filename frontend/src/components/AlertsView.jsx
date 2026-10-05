@@ -11,7 +11,7 @@ const SEVERITY_STYLES = {
   INFO: { tone: 'info', icon: <Globe className="w-4 h-4 text-sky-400" /> }
 };
 
-export default function AlertsView() {
+export default function AlertsView({ refreshKey = 0 }) {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -35,10 +35,10 @@ export default function AlertsView() {
   };
 
   useEffect(() => {
-    fetchAlerts();
+    fetchAlerts(refreshKey > 0);
     const interval = setInterval(() => fetchAlerts(true), 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [refreshKey]);
 
   const formatTime = (timestamp) => {
     if (!timestamp) return 'Unknown';

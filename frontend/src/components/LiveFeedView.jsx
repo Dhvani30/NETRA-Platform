@@ -44,7 +44,7 @@ const PLATFORM_THEMES = {
   bluesky: { label: 'Bluesky', color: '#0ea5e9', bg: 'rgba(14, 165, 233, 0.12)', border: 'rgba(14, 165, 233, 0.25)' },
 };
 
-export default function LiveFeedView({ onSelectPost, realOnly = true }) {
+export default function LiveFeedView({ onSelectPost, realOnly = true, refreshKey = 0 }) {
   // Feed state
   const [feedItems, setFeedItems] = useState([]);
   const [isPaused, setIsPaused] = useState(false);
@@ -111,10 +111,10 @@ export default function LiveFeedView({ onSelectPost, realOnly = true }) {
     }
   }, []);
 
-  // Load the initial proof snapshot only. Subsequent telemetry refreshes are manual.
+  // Initial proof snapshot. Later refresh keys update proof data without replacing the feed list.
   useEffect(() => {
     fetchProofData();
-  }, [fetchProofData]);
+  }, [fetchProofData, refreshKey]);
 
   const syncFeed = useCallback(async () => {
     setLoadingSummary(true);

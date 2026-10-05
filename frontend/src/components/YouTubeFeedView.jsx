@@ -4,7 +4,7 @@ import { Play, Eye, Clock, Video, RefreshCw, ExternalLink } from 'lucide-react';
 import { Badge, Button, GlassCard, PillTabs } from './ui/primitives';
 import { API_URL } from '../config';
 
-export default function YouTubeFeedView() {
+export default function YouTubeFeedView({ refreshKey = 0 }) {
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTopic, setSelectedTopic] = useState('All Topics');
@@ -24,7 +24,7 @@ export default function YouTubeFeedView() {
 
   useEffect(() => {
     fetchYouTubeFeed();
-  }, []);
+  }, [refreshKey]);
 
   const topics = ['All Topics', 'Cybersecurity', 'AI Regulation', 'Defense', 'Financial Tech'];
 

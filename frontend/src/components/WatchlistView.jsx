@@ -3,10 +3,10 @@ import axios from 'axios';
 import { API_URL } from '../config';
 
 const blank = { name: '', keywords: [], hashtags: [], languages: ['en'], subreddits: [], telegram_channels: [], youtube_queries: [], enabled: true };
-export default function WatchlistView() {
+export default function WatchlistView({ refreshKey = 0 }) {
   const [topics, setTopics] = useState([]); const [form, setForm] = useState(blank); const [error, setError] = useState('');
   const load = () => axios.get(`${API_URL}/watchlist`).then(r => setTopics(r.data.topics || []));
-  useEffect(() => { load().catch(() => setError('Could not load watchlist.')); }, []);
+  useEffect(() => { load().catch(() => setError('Could not load watchlist.')); }, [refreshKey]);
   const add = async e => { e.preventDefault(); setError(''); try { await axios.post(`${API_URL}/watchlist`, form); setForm(blank); load(); } catch (err) { setError(err.response?.data?.detail || 'Topic could not be saved.'); } };
   const remove = async id => { await axios.delete(`${API_URL}/watchlist/${id}`); load(); };
   const list = key => ({ value: (form[key] || []).join(', '), onChange: e => setForm({ ...form, [key]: e.target.value.split(',').map(v => v.trim()).filter(Boolean) }) });

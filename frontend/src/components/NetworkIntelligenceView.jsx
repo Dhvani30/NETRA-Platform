@@ -14,7 +14,7 @@ const getPlatformIcon = (name) => {
   return <Globe className="w-4 h-4 text-emerald-400" />;
 };
 
-export default function NetworkIntelligenceView() {
+export default function NetworkIntelligenceView({ refreshKey = 0 }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -32,7 +32,7 @@ export default function NetworkIntelligenceView() {
 
   useEffect(() => {
     fetchIntelligence();
-  }, []);
+  }, [refreshKey]);
 
   return (
     <div className="space-y-8" aria-busy={loading}>

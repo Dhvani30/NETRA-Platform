@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { API_URL } from '../config';
-export default function CoverageView() {
+export default function CoverageView({ refreshKey = 0 }) {
   const [rows, setRows] = useState({});
   useEffect(() => {
     axios.get(`${API_URL}/coverage`).then(r => setRows(r.data)).catch(() => setRows({}));
-  }, []);
+  }, [refreshKey]);
 
   return (
     <div className="space-y-5">

@@ -22,14 +22,14 @@ const SENTIMENT_COLORS = {
   ABSTAIN: 'var(--ds-color-text-3)'
 };
 
-export default function NarrativeTracker() {
+export default function NarrativeTracker({ refreshKey = 0 }) {
   const [selectedNarrative, setSelectedNarrative] = useState("Cyber Attack");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchMutationData(selectedNarrative);
-  }, [selectedNarrative]);
+  }, [selectedNarrative, refreshKey]);
 
   const fetchMutationData = async (narrative) => {
     setLoading(true);

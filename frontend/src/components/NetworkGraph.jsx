@@ -61,7 +61,7 @@ function createEntityMap(graphData) {
   };
 }
 
-export default function NetworkGraph({ graphData, _searchQuery = null, highlightQuery = null }) {
+export default function NetworkGraph({ graphData, refreshKey = 0, _searchQuery = null, highlightQuery = null }) {
   const fgRef = useRef();
   const containerRef = useRef();
   const [zoom, setZoom] = useState(1);
@@ -146,7 +146,7 @@ export default function NetworkGraph({ graphData, _searchQuery = null, highlight
   };
 
   return (
-    <section className="network-graph" aria-label="Network graph">
+    <section className="network-graph" aria-label="Network graph" data-refresh={refreshKey}>
       <header className="network-graph__header">
         <div className="network-graph__title-wrap"><span className="network-graph__status-dot" aria-hidden="true" /><div><p className="network-graph__eyebrow">Entity relationships</p><h2>Network <span>Graph</span></h2><p className="network-graph__count">{visibleGraph.nodes.length} visible nodes · {visibleGraph.links.length} connections · {graphData?.nodes?.length || 0} total entities</p></div></div>
         <div className="network-graph__controls" aria-label="Graph controls"><button type="button" onClick={handleZoomIn} title="Zoom in" aria-label="Zoom in"><ZoomIn /></button><button type="button" onClick={handleZoomOut} title="Zoom out" aria-label="Zoom out"><ZoomOut /></button><button type="button" onClick={handleResetZoom} title="Fit graph and clear selection" aria-label="Fit graph and clear selection"><RotateCcw /></button></div>
