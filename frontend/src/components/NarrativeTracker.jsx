@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { Activity, Clock } from 'lucide-react';
-import { Badge, GlassCard, KpiCard, ChartCard, PillTabs } from './ui/primitives';
+import { Clock } from 'lucide-react';
+import { Badge, KpiCard, ChartCard, PillTabs } from './ui/primitives';
+import { EmptyState, ErrorState, ScreenSkeleton } from './ui/dataState';
 
 import { API_URL } from '../config';
 
@@ -18,6 +19,7 @@ export default function NarrativeTracker({ refreshKey = 0 }) {
   const [selectedNarrative, setSelectedNarrative] = useState('');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     axios.get(`${API_URL}/analytics/narratives`).then(result => {
@@ -35,10 +37,10 @@ export default function NarrativeTracker({ refreshKey = 0 }) {
     setLoading(true);
     try {
       const res = await axios.get(`${API_URL}/analytics/mutation?narrative=${encodeURIComponent(narrative)}`);
-      setData(res.data);
+      setData(res.data?.timeline ? res.data : null);
+      setError(null);
     } catch (error) {
-      console.error("Error fetching mutation data:", error);
-      setData(null);
+      setError("Can't reach the NETRA API. Start the backend and retry.");
     } finally {
       setLoading(false);
     }
@@ -64,17 +66,12 @@ export default function NarrativeTracker({ refreshKey = 0 }) {
         </div>
       </div>
 
-      {loading ? (
-        <GlassCard className="p-12 text-center flex flex-col items-center justify-center gap-3">
-          <Activity className="w-8 h-8 text-indigo-400 animate-spin" />
-          <p className="text-gray-300 font-medium">Analyzing narrative mutation history…</p>
-        </GlassCard>
+      {error ? (
+        <ErrorState error={{ message: error }} onRetry={() => selectedNarrative && fetchMutationData(selectedNarrative)} />
+      ) : loading ? (
+        <ScreenSkeleton />
       ) : !data ? (
-        <GlassCard className="p-12 text-center">
-          <Activity className="w-8 h-8 text-gray-500 mx-auto mb-2" />
-          <h2 className="text-lg font-semibold text-gray-200">No mutation data available</h2>
-          <p className="text-gray-400 text-sm">Select a narrative filter above to load intelligence tracking.</p>
-        </GlassCard>
+        <EmptyState>No mutation history was returned for this narrative.</EmptyState>
       ) : (
         <>
           {/* Row of Max 4 KPI Cards */}
@@ -146,65 +143,72 @@ export default function NarrativeTracker({ refreshKey = 0 }) {
             )}
           </ChartCard>
 
-          {/* Secondary Section: 12-Column Grid for Events & Intelligence Summary */}
-          <div className="netra-grid-12">
-            <div className="col-span-12 lg:col-span-7">
-              <GlassCard className="p-6 h-full flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-base font-semibold text-gray-100">Narrative Mutation Events</h2>
-                    <Badge variant="accent">{data.mutations.length} mutations</Badge>
-                  </div>
-                  {data.mutations.length === 0 ? (
-                    <p className="text-gray-400 text-sm py-4">No significant mutations detected.</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {data.mutations.slice(0, 5).map((m, i) => (
-                        <div key={i} className="p-4 rounded-xl border border-white/10 bg-white/[0.02] space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Badge variant="accent">{m.phase}</Badge>
-                            <span className="text-xs text-gray-400 flex items-center gap-1">
-                              <Clock className="w-3 h-3" /> {m.time}
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap gap-1.5 pt-1">
-                            {m.new_elements.map((el, j) => (
-                              <Badge key={j} variant="neutral">+ {el}</Badge>
-                            ))}
-                          </div>
-                          <p className="text-xs text-gray-300">
-                            Sentiment shifted to:{' '}
-                            <strong style={{ color: SENTIMENT_COLORS[m.sentiment_shift] || '#f2f3fa' }}>
-                              {m.sentiment_shift}
-                            </strong>
-                          </p>
-                        </div>
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-base font-medium text-gray-100">Narrative Mutation Events</h2>
+              <Badge variant="accent">{data.mutations.length} mutations</Badge>
+            </div>
+            {data.mutations.length === 0 ? (
+              <div className="glass relative z-10 p-6 text-sm text-slate-400">No significant mutations detected.</div>
+            ) : (
+              <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {data.mutations.map((m, i) => (
+                  <article key={`${m.phase}-${i}`} className="glass relative z-10 p-4">
+                    <header className="flex items-start justify-between gap-3">
+                      <h3 className="text-sm font-medium text-white">{m.phase}</h3>
+                      <span className="pill shrink-0 font-mono text-[10px]">M-{String(i + 1).padStart(2, '0')}</span>
+                    </header>
+                    <dl className="mt-3 grid grid-cols-2 gap-2">
+                      <div className="rounded-lg border border-white/10 p-2">
+                        <dt className="label-xs">Time</dt>
+                        <dd className="mt-1 flex items-center gap-1 font-mono text-xs text-slate-200">
+                          <Clock className="h-3 w-3" /> {m.time}
+                        </dd>
+                      </div>
+                      <div className="rounded-lg border border-white/10 p-2">
+                        <dt className="label-xs">Sentiment</dt>
+                        <dd className="mt-1 font-mono text-xs" style={{ color: SENTIMENT_COLORS[m.sentiment_shift] || '#f2f3fa' }}>
+                          {m.sentiment_shift}
+                        </dd>
+                      </div>
+                    </dl>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {m.new_elements.map((el, j) => (
+                        <Badge key={j} variant="neutral">+ {el}</Badge>
                       ))}
                     </div>
-                  )}
-                </div>
-              </GlassCard>
-            </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
 
-            <div className="col-span-12 lg:col-span-5">
-              <GlassCard className="p-6 h-full space-y-4">
-                <h2 className="text-base font-semibold text-gray-100">Intelligence Synthesis</h2>
-                <div className="space-y-3 text-sm text-gray-300 leading-relaxed">
-                  <p>
-                    The <strong className="text-gray-100">{data.narrative}</strong> narrative has been tracked across <strong className="text-gray-100">{data.total_observations}</strong> telemetry points.
-                  </p>
-                  <div className="p-3 rounded-lg border border-indigo-500/20 bg-indigo-500/5 text-xs text-indigo-200">
-                    <strong>Key Finding:</strong> Mutated <strong>{data.mutations.length}</strong> times, introducing new entities and shifting sentiment from
-                    <span className="text-gray-100"> {data.timeline[0]?.sentiment || 'Neutral'}</span> to
-                    <strong style={{ color: SENTIMENT_COLORS[data.timeline[data.timeline.length-1]?.sentiment] }}> {data.timeline[data.timeline.length-1]?.sentiment}</strong>.
-                  </div>
-                  <p className="text-xs text-gray-400">
-                    <strong>Actionable Insight:</strong> Monitor newly introduced entities for potential escalation across social channels.
-                  </p>
-                </div>
-              </GlassCard>
-            </div>
-          </div>
+          <article className="glass relative z-10 p-4">
+            <header className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-base font-medium text-gray-100">Intelligence Synthesis</h2>
+              <span className="pill font-mono text-[10px]">{data.narrative}</span>
+            </header>
+            <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <div>
+                <dt className="label-xs">Observations</dt>
+                <dd className="mt-1 font-mono text-sm text-white">{data.total_observations}</dd>
+              </div>
+              <div>
+                <dt className="label-xs">Mutations</dt>
+                <dd className="mt-1 font-mono text-sm text-white">{data.mutations.length}</dd>
+              </div>
+              <div>
+                <dt className="label-xs">Start</dt>
+                <dd className="mt-1 font-mono text-sm text-white">{data.timeline[0]?.sentiment || 'Neutral'}</dd>
+              </div>
+              <div>
+                <dt className="label-xs">Latest</dt>
+                <dd className="mt-1 font-mono text-sm" style={{ color: SENTIMENT_COLORS[data.timeline[data.timeline.length - 1]?.sentiment] || '#f2f3fa' }}>
+                  {data.timeline[data.timeline.length - 1]?.sentiment || 'Neutral'}
+                </dd>
+              </div>
+            </dl>
+          </article>
         </>
       )}
     </div>

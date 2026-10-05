@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import { Activity, Clock, FileText, AlertCircle, RefreshCw, Radio, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { API_URL } from '../config';
-import { useLiveStream } from '../hooks/useLiveStream';
+import { ErrorState } from './ui/dataState';
 
 const STATUS_HELP = {
   LIVE: 'Collecting from an authorized live connection.',
@@ -33,14 +33,15 @@ export default function SourcesTimelineView({ refreshKey = 0 }) {
   const [importInfo, setImportInfo] = useState({ dataset: null, minDate: null, maxDate: null });
   const [integrity, setIntegrity] = useState(null);
   const [integrityLoading, setIntegrityLoading] = useState(false);
+  const [loadError, setLoadError] = useState(null);
 
   const fetchIntegrity = useCallback(async () => {
     setIntegrityLoading(true);
     try {
       const res = await axios.get(`${API_URL}/integrity`);
       setIntegrity(res.data);
-    } catch (err) {
-      console.error('Failed to load integrity', err);
+    } catch {
+      setLoadError("Can't reach the NETRA API. Start the backend and retry.");
     } finally {
       setIntegrityLoading(false);
     }
@@ -52,6 +53,7 @@ export default function SourcesTimelineView({ refreshKey = 0 }) {
     if (sourceMode) params.set('source_mode', sourceMode);
     if (from) params.set('from', new Date(from).toISOString());
     if (to) params.set('to', new Date(to).toISOString());
+    try {
     const [sourceRes, timelineRes] = await Promise.all([
       axios.get(`${API_URL}/health/sources`),
       axios.get(`${API_URL}/timeline?${params}`),
@@ -59,6 +61,7 @@ export default function SourcesTimelineView({ refreshKey = 0 }) {
     setSources(sourceRes.data || {});
     const timelineData = timelineRes.data.timeline || [];
     setData(timelineData);
+    setLoadError(null);
 
     // Compute date range for imported data
     const importRows = timelineData.filter(r => r.source_mode === 'IMPORT');
@@ -72,29 +75,15 @@ export default function SourcesTimelineView({ refreshKey = 0 }) {
         });
       }
     }
+    } catch {
+      setLoadError("Can't reach the NETRA API. Start the backend and retry.");
+    }
   }, [platform, sourceMode, bucket, from, to]);
 
   useEffect(() => {
-    load().catch(() => { setSources({}); setData([]); });
+    load();
     fetchIntegrity();
   }, [load, fetchIntegrity, refreshKey]);
-
-  // When in live mode, refresh timeline when new live events arrive or every 4s
-  const onStreamEvent = useCallback(() => {
-    if (isLiveMode) {
-      load().catch(() => {});
-    }
-  }, [isLiveMode, load]);
-
-  useLiveStream(onStreamEvent);
-
-  useEffect(() => {
-    if (!isLiveMode) return;
-    const interval = setInterval(() => {
-      load().catch(() => {});
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [isLiveMode, load]);
 
   const syncMeta = async (source) => {
     setSyncing(source);
@@ -126,6 +115,7 @@ export default function SourcesTimelineView({ refreshKey = 0 }) {
 
   return (
     <div className="space-y-6">
+      {loadError && <ErrorState error={{ message: loadError }} onRetry={load} />}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-light text-white">
@@ -486,8 +476,8 @@ export default function SourcesTimelineView({ refreshKey = 0 }) {
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-full flex items-center justify-center text-xs text-slate-500 font-mono">
-              No records in this range.
+            <div className="flex h-full items-center justify-center px-4 text-sm text-slate-400">
+              {loadError ? 'Timeline data is unavailable until the API responds.' : 'No timeline rows were returned for this range.'}
             </div>
           )}
         </div>

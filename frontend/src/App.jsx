@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import {
   ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid
@@ -25,15 +25,12 @@ import SentimentTimelineView from './components/SentimentTimelineView';
 import TrendsView from './components/TrendsView';
 import MetaFeedView from './components/MetaFeedView';
 import LiveStatusStrip from './components/LiveStatusStrip';
-import { useLiveStream } from './hooks/useLiveStream';
 import WatchlistView from './components/WatchlistView';
 import CoverageView from './components/CoverageView';
 
 import { Button, ChartCard, DataTable, Input, StatusBadge } from './components/ui/primitives';
-import { ErrorState } from './components/ui/dataState';
-import { API_URL } from './config';
-
-const API_UNREACHABLE = "Can't reach the NETRA API (http://127.0.0.1:8000). Start the backend and retry.";
+import { BackendConnectivityProvider, EmptyState, ErrorState, ScreenSkeleton, Skeleton } from './components/ui/dataState';
+import { API_UNREACHABLE, API_URL } from './config';
 
 const SCREEN_PATHS = {
   live_feed: '/dashboard/live',
@@ -128,19 +125,22 @@ function App() {
   const [sentimentData, setSentimentData] = useState([]);
   const [narrativeData, setNarrativeData] = useState([]);
   const [graphData, setGraphData] = useState({ nodes: [], links: [] });
-  const [messages, setMessages] = useState([]);
   const [sourcesStatus, setSourcesStatus] = useState({});
   const [liveSummary, setLiveSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
+  const [graphError, setGraphError] = useState(null);
+  const [searchError, setSearchError] = useState(null);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
   const [investigationData, setInvestigationData] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const hadBackendFailure = useRef(false);
+  const [backendConnected, setBackendConnected] = useState(null);
   const [realOnly, setRealOnly] = useState(() => new URLSearchParams(window.location.search).get('real_only') !== '0');
-  const onLiveEvent = useCallback(() => { setRefreshKey(key => key + 1); }, []);
-  const { connected: backendConnected, state: streamState } = useLiveStream(onLiveEvent);
+  const streamState = backendConnected === false ? 'offline' : backendConnected ? 'connected' : 'connecting';
+  const backendOffline = Boolean(loadError) || backendConnected === false;
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -187,14 +187,16 @@ function App() {
     if (!background) setLoading(true);
     try {
       const sourceFilter = realOnly ? { real_only: 1 } : {};
-      const [summaryRes, timeseriesRes, originRes, sentimentRes, narrativeRes, graphRes, messagesRes, sourcesRes, liveSumRes] = await Promise.all([
+      const [summaryRes, timeseriesRes, originRes, sentimentRes, narrativeRes, graphRes, sourcesRes, liveSumRes] = await Promise.all([
         axios.get(`${API_URL}/analytics/summary`, { params: sourceFilter }),
         axios.get(`${API_URL}/analytics/timeseries`, { params: sourceFilter }),
         axios.get(`${API_URL}/analytics/data-origin`, { params: sourceFilter }),
         axios.get(`${API_URL}/analytics/sentiment`, { params: sourceFilter }),
         axios.get(`${API_URL}/analytics/narratives`, { params: sourceFilter }),
-        axios.get(`${API_URL}/graph/data`, { params: sourceFilter }).catch(() => ({ data: { nodes: [], links: [] } })),
-        axios.get(`${API_URL}/messages?limit=20`, { params: sourceFilter }),
+        axios.get(`${API_URL}/graph/data`, { params: sourceFilter }).then(
+          (result) => ({ ok: true, data: result.data }),
+          () => ({ ok: false })
+        ),
         axios.get(`${API_URL}/health/sources`).catch(() => ({ data: {} })),
         axios.get(`${API_URL}/live/summary`).catch(() => ({ data: null }))
       ]);
@@ -203,42 +205,67 @@ function App() {
       setDataOrigin(originRes.data);
       setSentimentData(sentimentRes.data.sentiment_breakdown || []);
       setNarrativeData(narrativeRes.data.clusters || []);
-      setGraphData(graphRes.data || { nodes: [], links: [] });
-      setMessages(messagesRes.data.messages || []);
+      if (graphRes.ok) {
+        setGraphData(graphRes.data || { nodes: [], links: [] });
+        setGraphError(null);
+      } else {
+        setGraphError('The graph endpoint did not respond. The rest of the dashboard is still available.');
+      }
       setSourcesStatus(sourcesRes.data || {});
       setLiveSummary(liveSumRes.data || null);
       setLastUpdated(new Date());
       setLoadError(null);
+      setBackendConnected(true);
       setHasLoaded(true);
     } catch (error) {
-      console.error('Error fetching data:', error);
       setLoadError(API_UNREACHABLE);
+      setBackendConnected(false);
     } finally {
       if (!background) setLoading(false);
     }
   }, [realOnly]);
 
-  const handleSearch = async (e) => {
-    if (e.key === 'Enter' && searchQuery.trim()) {
-      setLoading(true);
-      try {
-        const searchRes = await axios.get(`${API_URL}/search?q=${encodeURIComponent(searchQuery)}`);
-        setInvestigationData(searchRes.data);
-        openScreen('investigate');
-      } catch (error) {
-        console.error('Error searching:', error);
-      } finally {
-        setLoading(false);
-      }
+  const runInvestigation = async (term) => {
+    const q = String(term || '').trim();
+    if (!q) return;
+    setSearchQuery(q);
+    // Navigate immediately so searches initiated outside the console (for example,
+    // from the product hero) land in the same Deep Search experience.
+    openScreen('investigate');
+    setLoading(true);
+    try {
+      const searchRes = await axios.get(`${API_URL}/search?q=${encodeURIComponent(q)}`);
+      setSearchError(null);
+      setInvestigationData(searchRes.data);
+    } catch (error) {
+        setSearchError(API_UNREACHABLE);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleSearch = async (e) => {
+    if (e.key === 'Enter') runInvestigation(searchQuery);
   };
 
   const handleBackToDashboard = () => {
     setSearchQuery('');
+    setInvestigationData(null);
     openScreen('analytics');
   };
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // A recovered global request refreshes the active view immediately. Local
+  // view error states are therefore cleared without waiting for their next poll.
+  useEffect(() => {
+    if (backendOffline) {
+      hadBackendFailure.current = true;
+    } else if (hadBackendFailure.current) {
+      hadBackendFailure.current = false;
+      setRefreshKey(key => key + 1);
+    }
+  }, [backendOffline]);
 
   useEffect(() => {
     if (!refreshKey) return;
@@ -247,19 +274,13 @@ function App() {
     }
   }, [refreshKey, activeScreen, fetchData]);
 
-  useEffect(() => {
-    if (!loadError) return undefined;
-    const timer = setInterval(() => { fetchData({ background: true }); }, 10000);
-    return () => clearInterval(timer);
-  }, [loadError, fetchData]);
-
   const toggleGroup = (groupId) => {
     setOpenGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }));
   };
 
   // If at root '/', render Landing Page
   if (currentPath === '/') {
-    return <LandingPage onOpenDashboard={navigateToDashboard} />;
+    return <LandingPage onOpenDashboard={navigateToDashboard} onSearch={runInvestigation} />;
   }
 
   const totalPostsCount = summaryData?.total_posts ?? 0;
@@ -267,18 +288,16 @@ function App() {
 
   // If at '/dashboard', render Dashboard Shell
   return (
+    <BackendConnectivityProvider offline={backendOffline}>
     <div className="netra-shell">
       {/* 200px Fixed Sidebar */}
       <aside className="netra-sidebar">
-        <div>
-          {/* Logo / Home button */}
           <div className="netra-sidebar__logo" onClick={navigateToLanding} title="Back to product home">
             <div className="netra-sidebar__logo-mark">N</div>
             <span>NETRA</span>
           </div>
 
-          {/* Collapsible Nav Groups */}
-          <nav className="mt-4 space-y-1">
+          <nav className="netra-sidebar__nav">
             {NAV_GROUPS.map((group) => {
               const isOpen = openGroups[group.id];
               return (
@@ -311,7 +330,6 @@ function App() {
               );
             })}
           </nav>
-        </div>
 
         {/* Single Support Pill Button at Bottom (No Promo Card) */}
         <div className="netra-sidebar__support">
@@ -325,7 +343,7 @@ function App() {
       <div className="netra-main">
         {/* Topbar */}
         <header className="netra-topbar">
-          <div className="flex items-center gap-4">
+          <div className="netra-topbar__brand">
             {investigationData && (
               <button
                 onClick={handleBackToDashboard}
@@ -352,11 +370,11 @@ function App() {
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="netra-topbar__actions">
             <button
               onClick={() => setShowDemoDrawer(true)}
-              className="pill text-[11px] flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 font-medium transition-colors cursor-pointer"
-              title="Open Demo Mode Checklist & Platform Coverage"
+              className="pill flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 font-medium transition-colors cursor-pointer"
+              title="Open source status"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
               Demo Checklist
@@ -368,9 +386,14 @@ function App() {
         {/* Content Area */}
         <main className="netra-content">
           <div className="netra-content__inner">
-            {loadError && (
+            {backendOffline && (
               <div className="mb-4">
-                <ErrorState error={{ message: loadError }} onRetry={() => fetchData()} />
+                <ErrorState global error={{ message: loadError || API_UNREACHABLE }} onRetry={() => fetchData({ background: true })} />
+              </div>
+            )}
+            {searchError && (
+              <div className="mb-4">
+                <ErrorState error={{ message: searchError }} onRetry={() => handleSearch({ key: 'Enter' })} />
               </div>
             )}
             {/* SCREEN 1: ANALYTICS */}
@@ -393,15 +416,14 @@ function App() {
                       <span className="label-xs text-slate-400">TOTAL INGESTION (BY MODE)</span>
                       <div className="flex items-baseline justify-between mt-1">
                         <span className="kpi-value">
-                          {dataPhase === 'loading' ? '…' : dataPhase === 'error' ? '—' : (summaryData?.total_posts ?? dataOrigin?.total ?? 0).toLocaleString()}
+                          {dataPhase === 'ready' ? (summaryData?.total_posts ?? dataOrigin?.total ?? 0).toLocaleString() : <Skeleton className="inline-block h-8 w-16" />}
                         </span>
                         <span className="text-[10px] font-mono text-emerald-400">authoritative</span>
                       </div>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-1">
-                      {dataPhase === 'loading' && <span className="text-sm text-slate-300">Loading ingestion counts.</span>}
-                      {dataPhase === 'error' && <span className="text-sm text-amber-200">Ingestion counts are unavailable until the API responds.</span>}
-                      {dataPhase === 'ready' && (summaryData?.total_posts ?? dataOrigin?.total ?? 0) === 0 && <span className="text-sm text-slate-300">No posts collected yet.</span>}
+                      {dataPhase !== 'ready' && <Skeleton className="h-5 w-full" />}
+                      {dataPhase === 'ready' && (summaryData?.total_posts ?? dataOrigin?.total ?? 0) === 0 && <span className="text-sm text-slate-400">No posts collected yet.</span>}
                       {dataPhase === 'ready' && (summaryData?.total_posts ?? dataOrigin?.total ?? 0) > 0 && (
                         <>
                           <StatusBadge status="LIVE">LIVE: {dataOrigin?.live ?? 0}</StatusBadge>
@@ -419,14 +441,13 @@ function App() {
                       <span className="label-xs text-slate-400">DATA FRESHNESS</span>
                       <div className="flex items-baseline justify-between mt-1">
                         <span className="kpi-value text-emerald-400">
-                          {dataPhase === 'loading' ? '…' : dataPhase === 'error' ? '—' : liveSummary?.newest_item_age_seconds != null ? `${liveSummary.newest_item_age_seconds}s` : 'No items'}
+                          {dataPhase !== 'ready' ? <Skeleton className="inline-block h-8 w-20" /> : liveSummary?.newest_item_age_seconds != null ? `${liveSummary.newest_item_age_seconds}s` : 'No items'}
                         </span>
                         <span className="text-[10px] font-mono text-slate-400">newest item</span>
                       </div>
                     </div>
                     <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-sm font-mono">
-                      {dataPhase === 'loading' && <span className="col-span-2 text-slate-300">Loading source freshness.</span>}
-                      {dataPhase === 'error' && <span className="col-span-2 text-amber-200">Source freshness is unavailable until the API responds.</span>}
+                      {dataPhase !== 'ready' && <Skeleton className="col-span-2 h-10 w-full" />}
                       {dataPhase === 'ready' && Object.entries(sourcesStatus).filter(([, src]) => src.mode !== 'DISABLED' && src.reason !== 'not_enabled_in_this_build').map(([p]) => {
                         const src = sourcesStatus[p] || {};
                         const isFresh = src.status === 'LIVE' || (src.last_success && (Date.now() - new Date(src.last_success).getTime()) < 3600000);
@@ -452,9 +473,8 @@ function App() {
                       <span className="label-xs text-slate-400">COVERAGE MINI-MATRIX</span>
                       <div className="mt-2 space-y-1.5">
                         <div className="flex flex-wrap gap-1">
-                          {dataPhase === 'loading' && <span className="text-sm text-slate-300">Loading coverage.</span>}
-                          {dataPhase === 'error' && <span className="text-sm text-amber-200">Coverage is unavailable until the API responds.</span>}
-                          {dataPhase === 'ready' && Object.keys(sourcesStatus).length === 0 && <span className="text-sm text-slate-300">No source status reported.</span>}
+                          {dataPhase !== 'ready' && <Skeleton className="h-5 w-full" />}
+                          {dataPhase === 'ready' && Object.keys(sourcesStatus).length === 0 && <span className="text-sm text-slate-400">No source status reported.</span>}
                           {dataPhase === 'ready' && Object.keys(sourcesStatus).map(p => {
                             const src = sourcesStatus[p] || {};
                             const isNotEnabled = src.status === 'Not enabled in this build' || src.mode === 'DISABLED';
@@ -485,15 +505,14 @@ function App() {
                       <span className="label-xs text-slate-400">INTELLIGENCE SIGNALS</span>
                       <div className="flex items-baseline justify-between mt-1">
                         <span className="kpi-value">
-                          {dataPhase === 'loading' ? '…' : dataPhase === 'error' ? '—' : (summaryData?.active_narratives ?? 0)}
+                          {dataPhase === 'ready' ? (summaryData?.active_narratives ?? 0) : <Skeleton className="inline-block h-8 w-12" />}
                         </span>
                         <span className="text-[10px] font-mono text-indigo-300">narratives</span>
                       </div>
                     </div>
                     <div className="mt-3 flex items-center justify-between text-sm font-mono text-slate-300 pt-1 border-t border-white/5">
-                      {dataPhase === 'loading' && <span>Loading signals.</span>}
-                      {dataPhase === 'error' && <span className="text-amber-200">Signals are unavailable until the API responds.</span>}
-                      {dataPhase === 'ready' && (summaryData?.active_narratives ?? 0) === 0 && (summaryData?.active_alerts ?? 0) === 0 && <span>No narratives or alerts in the collected data.</span>}
+                      {dataPhase !== 'ready' && <Skeleton className="h-4 w-full" />}
+                      {dataPhase === 'ready' && (summaryData?.active_narratives ?? 0) === 0 && (summaryData?.active_alerts ?? 0) === 0 && <span className="text-slate-400">No narratives or alerts in the collected data.</span>}
                       {dataPhase === 'ready' && ((summaryData?.active_narratives ?? 0) > 0 || (summaryData?.active_alerts ?? 0) > 0) && (
                         <>
                           <span>Alerts: <strong className="text-amber-400">{summaryData?.active_alerts ?? 0}</strong></span>
@@ -508,13 +527,11 @@ function App() {
                 <ChartCard title="Narrative volume timeseries" subtitle="Hourly counts from the analytics API">
 
                   <div className="h-[240px] w-full relative">
-                    {dataPhase === 'loading' ? (
-                      <div className="flex items-center justify-center h-full text-slate-300 text-sm">Loading timeseries.</div>
-                    ) : dataPhase === 'error' ? (
-                      <div className="flex items-center justify-center h-full text-amber-200 text-sm text-center px-6">{loadError}</div>
+                    {dataPhase !== 'ready' ? (
+                      <Skeleton className="h-full w-full" />
                     ) : timeseriesData.length === 0 ? (
-                      <div className="flex items-center justify-center h-full text-slate-300 text-sm">
-                        No timeseries telemetry points available in the database.
+                      <div className="flex h-full items-center px-2">
+                        <p className="text-sm text-slate-400">The timeseries endpoint returned no hourly points.</p>
                       </div>
                     ) : (
                       <ResponsiveContainer width="100%" height="100%">
@@ -551,14 +568,10 @@ function App() {
                     <span className="label-xs">Top Active Clusters</span>
                   </div>
 
-                  {dataPhase === 'loading' ? (
-                    <div className="p-8 text-center text-slate-300 text-sm">Loading narrative clusters.</div>
-                  ) : dataPhase === 'error' ? (
-                    <div className="p-8 text-center text-amber-200 text-sm">{loadError}</div>
+                  {dataPhase !== 'ready' ? (
+                    <div className="space-y-2"><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /></div>
                   ) : narrativeData.length === 0 ? (
-                    <div className="p-8 text-center text-slate-300 text-sm">
-                      No active narrative clusters found in the database.
-                    </div>
+                    <EmptyState>The narratives endpoint returned no clusters.</EmptyState>
                   ) : (
                     <DataTable
                       maxRows={5}
@@ -575,10 +588,10 @@ function App() {
               </div>
             )}
 
-            {activeScreen === 'live_feed' && <LiveFeedView refreshKey={refreshKey} onSelectPost={setSelectedProvenancePost} realOnly={realOnly} />}
-            {activeScreen === 'alerts' && <AlertsView refreshKey={refreshKey} />}
-            {activeScreen === 'youtube' && <YouTubeFeedView refreshKey={refreshKey} />}
-            {activeScreen === 'meta' && <MetaFeedView refreshKey={refreshKey} />}
+            {activeScreen === 'live_feed' && <LiveFeedView onSelectPost={setSelectedProvenancePost} />}
+            {activeScreen === 'alerts' && <AlertsView />}
+            {activeScreen === 'youtube' && <YouTubeFeedView />}
+            {activeScreen === 'meta' && <MetaFeedView />}
             {activeScreen === 'sources' && <SourcesTimelineView refreshKey={refreshKey} />}
             {activeScreen === 'watchlist' && <WatchlistView refreshKey={refreshKey} />}
             {activeScreen === 'coverage' && <CoverageView refreshKey={refreshKey} />}
@@ -587,15 +600,29 @@ function App() {
             {activeScreen === 'trends' && <TrendsView refreshKey={refreshKey} />}
             {activeScreen === 'investigate' && (
               <InvestigationView
-                investigationData={investigationData || { query: searchQuery, documents: messages }}
+                investigationData={investigationData}
                 graphData={graphData}
+                graphError={graphError}
+                onRetryGraph={() => fetchData({ background: true })}
                 onBack={handleBackToDashboard}
-                searchQuery={searchQuery || 'cybersecurity'}
+                onSearch={runInvestigation}
+                searchQuery={searchQuery}
                 onSelectPost={setSelectedProvenancePost}
               />
             )}
             {activeScreen === 'mutation' && <NarrativeTracker refreshKey={refreshKey} />}
             {activeScreen === 'correlation' && <CrossPlatformView refreshKey={refreshKey} />}
+            {activeScreen === 'graph' && (
+              graphError ? (
+                <ErrorState error={{ message: graphError }} onRetry={() => fetchData({ background: true })} />
+              ) : dataPhase !== 'ready' ? (
+                <ScreenSkeleton />
+              ) : !(graphData?.nodes?.length) ? (
+                <EmptyState>The graph endpoint returned no nodes.</EmptyState>
+              ) : (
+                <NetworkGraph graphData={graphData} refreshKey={refreshKey} />
+              )
+            )}
             {activeScreen === 'graph' && <NetworkGraph graphData={graphData} refreshKey={refreshKey} />}
             {activeScreen === 'network_intel' && <NetworkIntelligenceView refreshKey={refreshKey} />}
           </div>
@@ -617,6 +644,7 @@ function App() {
         onNavigate={(screen) => openScreen(screen)}
       />
     </div>
+    </BackendConnectivityProvider>
   );
 }
 

@@ -1,45 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { AlertTriangle, TrendingUp, Globe, Bell, RefreshCw, Video } from 'lucide-react';
-import { Badge, Button, GlassCard, KpiCard, DataTable, StatusBadge } from './ui/primitives';
-import { WhyNothingArriving } from './ui/dataState';
-
+import { RefreshCw } from 'lucide-react';
+import { Badge, Button, KpiCard, DataTable, StatusBadge } from './ui/primitives';
+import { EmptyState, ErrorState, ScreenSkeleton } from './ui/dataState';
 import { API_URL } from '../config';
 
-const SEVERITY_STYLES = {
-  CRITICAL: { tone: 'danger', icon: <AlertTriangle className="w-4 h-4 text-red-400" /> },
-  WARNING: { tone: 'warning', icon: <TrendingUp className="w-4 h-4 text-amber-400" /> },
-  INFO: { tone: 'info', icon: <Globe className="w-4 h-4 text-sky-400" /> }
-};
-
-export default function AlertsView({ refreshKey = 0 }) {
+export default function AlertsView() {
   const [alerts, setAlerts] = useState([]);
+  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const fetchAlerts = async (isManualRefresh = false) => {
-    if (isManualRefresh) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
-
+  const loadedOnce = useRef(false);
+  const loadAlerts = async () => {
+    setLoading(true);
     try {
-      const res = await axios.get(`${API_URL}/analytics/alerts?t=${Date.now()}`);
+      const res = await axios.get(`${API_URL}/analytics/alerts`, { params: { t: Date.now() } });
       setAlerts(res.data.alerts || []);
-    } catch (error) {
-      console.error("Error fetching alerts:", error);
+      setError(null);
+    } catch {
+      setError("Can't reach the NETRA API. Start the backend and retry.");
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
-
   useEffect(() => {
-    fetchAlerts(refreshKey > 0);
-    const interval = setInterval(() => fetchAlerts(true), 30000);
-    return () => clearInterval(interval);
-  }, [refreshKey]);
+    if (loadedOnce.current) return;
+    loadedOnce.current = true;
+    void loadAlerts();
+  }, []);
 
   const formatTime = (timestamp) => {
     if (!timestamp) return 'Unknown';
@@ -88,36 +75,26 @@ export default function AlertsView({ refreshKey = 0 }) {
 
   return (
     <div className="space-y-8" aria-busy={loading}>
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="netra-page-header mb-0">
           <span className="netra-page-eyebrow">Real-Time Threat Monitoring</span>
           <h1 className="netra-page-title">Intelligence <span>Alerts</span></h1>
-          <p className="netra-page-subtitle">{loading ? 'Loading alerts.' : `${alerts.length} alerts returned by the API.`}</p>
+          <p className="netra-page-subtitle">Alerts returned by the analytics API.</p>
         </div>
-
-        <Button variant="secondary" onClick={() => fetchAlerts(true)} disabled={refreshing} loading={refreshing}>
-          <RefreshCw className={refreshing ? 'animate-spin' : ''} />
-          {refreshing ? 'Scanning…' : 'Refresh'}
+        <Button variant="secondary" onClick={loadAlerts} loading={loading}>
+          <RefreshCw className={loading ? 'animate-spin' : ''} />
+          Refresh
         </Button>
       </div>
 
-      {loading ? (
-        <GlassCard className="p-12 text-center flex flex-col items-center justify-center gap-3">
-          <RefreshCw className="w-8 h-8 text-indigo-400 animate-spin" />
-          <p className="text-gray-300 font-medium">Scanning for threat signals…</p>
-        </GlassCard>
+      {error ? (
+        <ErrorState error={{ message: error }} onRetry={loadAlerts} />
+      ) : loading ? (
+        <ScreenSkeleton />
       ) : alerts.length === 0 ? (
-        <div className="space-y-3">
-          <GlassCard className="p-12 text-center">
-            <Bell className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-80" />
-            <h2 className="text-lg font-semibold text-gray-200">The alerts API returned no rows.</h2>
-          </GlassCard>
-          <WhyNothingArriving />
-        </div>
+        <EmptyState>The alerts API returned no rows.</EmptyState>
       ) : (
         <>
-          {/* Row of Max 4 KPI Cards */}
           <div className="netra-grid-12">
             <div className="col-span-12 md:col-span-6 lg:col-span-3">
               <KpiCard

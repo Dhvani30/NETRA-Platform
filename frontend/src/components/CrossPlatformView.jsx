@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Share2, MessageSquare, Globe, Activity, Video } from 'lucide-react';
-import { Badge, Button, GlassCard, KpiCard, ChartCard, Input } from './ui/primitives';
+import { Share2, MessageSquare, Globe, Video } from 'lucide-react';
+import { Badge, Button, KpiCard, Input } from './ui/primitives';
+import { EmptyState, ErrorState, ScreenSkeleton } from './ui/dataState';
 
 import { API_URL } from '../config';
 
@@ -14,25 +15,30 @@ const PLATFORM_ICONS = {
 };
 
 export default function CrossPlatformView({ refreshKey = 0 }) {
-  const [query, setQuery] = useState('cisco');
+  const [query, setQuery] = useState('');
+  const [submitted, setSubmitted] = useState('');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const fetchCorrelation = async (searchTerm) => {
-    if (!searchTerm.trim()) return;
+    const term = String(searchTerm || '').trim();
+    if (!term) return;
+    setSubmitted(term);
     setLoading(true);
     try {
-      const res = await axios.get(`${API_URL}/analytics/correlation?q=${encodeURIComponent(searchTerm)}`);
+      const res = await axios.get(`${API_URL}/analytics/correlation?q=${encodeURIComponent(term)}`);
       setData(res.data);
+      setError(null);
     } catch (error) {
-      console.error("Error fetching correlation:", error);
+      setError("Can't reach the NETRA API. Start the backend and retry.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCorrelation(query);
+    if (refreshKey && submitted) fetchCorrelation(submitted);
   }, [refreshKey]);
 
   const formatTime = (timestamp) => {
@@ -58,7 +64,7 @@ export default function CrossPlatformView({ refreshKey = 0 }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && fetchCorrelation(query)}
-            placeholder="Search topic..."
+            placeholder="Enter a topic"
             aria-label="Topic to track"
           />
           <Button variant="primary" onClick={() => fetchCorrelation(query)}>
@@ -67,17 +73,14 @@ export default function CrossPlatformView({ refreshKey = 0 }) {
         </div>
       </div>
 
-      {loading ? (
-        <GlassCard className="p-12 text-center flex flex-col items-center justify-center gap-3">
-          <Activity className="w-8 h-8 text-indigo-400 animate-spin" />
-          <p className="text-gray-300 font-medium">Tracking cross-platform propagation flow…</p>
-        </GlassCard>
+      {error ? (
+        <ErrorState error={{ message: error }} onRetry={() => fetchCorrelation(query)} />
+      ) : loading ? (
+        <ScreenSkeleton />
+      ) : !submitted ? (
+        <p className="text-sm text-slate-400">Enter a topic and press Track to compare it across platforms.</p>
       ) : !data || data.flow.length === 0 ? (
-        <GlassCard className="p-12 text-center">
-          <Globe className="w-8 h-8 text-gray-500 mx-auto mb-2" />
-          <h2 className="text-lg font-semibold text-gray-200">No cross-platform correlation found</h2>
-          <p className="text-gray-400 text-sm">Try entering another keyword to trace cross-network propagation.</p>
-        </GlassCard>
+        <EmptyState>No posts matched this topic across the collected platforms.</EmptyState>
       ) : (
         <>
           {/* Row of Max 4 KPI Cards */}
@@ -120,34 +123,41 @@ export default function CrossPlatformView({ refreshKey = 0 }) {
             </div>
           </div>
 
-          {/* Main Visualization: Propagation Timeline Flow */}
-          <ChartCard
-            title="Intelligence Spread Timeline"
-            subtitle={`Cross-platform trajectory for "${data.query}"`}
-            action={<Badge variant="accent">{data.query}</Badge>}
-          >
-            <div className="py-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {data.flow.map((item, index) => (
-                  <GlassCard key={index} className="p-5 flex flex-col justify-between space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {PLATFORM_ICONS[item.platform] || PLATFORM_ICONS.UNKNOWN}
-                        <span className="font-semibold text-gray-100 text-sm">{item.platform}</span>
-                      </div>
-                      <Badge variant="neutral">{item.post_count} posts</Badge>
-                    </div>
-
-                    <time className="text-xs text-gray-400 font-mono">First seen: {formatTime(item.first_seen)}</time>
-
-                    <p className="text-xs text-gray-300 line-clamp-3 bg-white/[0.02] p-2.5 rounded-lg border border-white/5">
-                      "{item.sample_text}"
-                    </p>
-                  </GlassCard>
-                ))}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-medium text-gray-100">Intelligence Spread</h2>
+                <p className="text-xs text-slate-400">Cross-platform trajectory for “{data.query}”</p>
               </div>
+              <Badge variant="accent">{data.query}</Badge>
             </div>
-          </ChartCard>
+            <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {data.flow.map((item, index) => (
+                <article key={`${item.platform}-${index}`} className="glass relative z-10 p-4">
+                  <header className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      {PLATFORM_ICONS[item.platform] || PLATFORM_ICONS.UNKNOWN}
+                      <h3 className="truncate text-sm font-medium text-white">{item.platform}</h3>
+                    </div>
+                    <span className="pill shrink-0 font-mono text-[10px]">P-{String(index + 1).padStart(2, '0')}</span>
+                  </header>
+                  <dl className="mt-3 grid grid-cols-2 gap-2">
+                    <div className="rounded-lg border border-white/10 p-2">
+                      <dt className="label-xs">Posts</dt>
+                      <dd className="mt-1 font-mono text-sm text-white">{item.post_count}</dd>
+                    </div>
+                    <div className="rounded-lg border border-white/10 p-2">
+                      <dt className="label-xs">First seen</dt>
+                      <dd className="mt-1 font-mono text-[11px] text-slate-200">{formatTime(item.first_seen)}</dd>
+                    </div>
+                  </dl>
+                  {item.sample_text && (
+                    <p className="mt-3 line-clamp-3 text-xs leading-relaxed text-slate-300">“{item.sample_text}”</p>
+                  )}
+                </article>
+              ))}
+            </div>
+          </section>
         </>
       )}
     </div>

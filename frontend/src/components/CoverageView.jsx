@@ -1,11 +1,16 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { API_URL } from '../config';
+import { EmptyState, ErrorState, ScreenSkeleton } from './ui/dataState';
 export default function CoverageView({ refreshKey = 0 }) {
-  const [rows, setRows] = useState({});
-  useEffect(() => {
-    axios.get(`${API_URL}/coverage`).then(r => setRows(r.data)).catch(() => setRows({}));
-  }, [refreshKey]);
+  const [rows, setRows] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const load = () => {
+    setLoading(true);
+    axios.get(`${API_URL}/coverage`).then(r => { setRows(r.data || {}); setError(null); }).catch(() => setError("Can't reach the NETRA API. Start the backend and retry.")).finally(() => setLoading(false));
+  };
+  useEffect(() => { load(); }, [refreshKey]);
 
   return (
     <div className="space-y-5">
@@ -19,6 +24,7 @@ export default function CoverageView({ refreshKey = 0 }) {
         Enabled and disabled sources below come from the coverage API.
       </div>
 
+      {error ? <ErrorState error={{ message: error }} onRetry={load} /> : loading ? <ScreenSkeleton cards={1} /> : !rows || Object.keys(rows).length === 0 ? <EmptyState>The coverage endpoint returned no platforms.</EmptyState> : (
       <div className="glass overflow-x-auto">
         <table className="w-full text-left text-xs">
           <thead className="text-slate-400 border-b border-white/10">
@@ -33,7 +39,7 @@ export default function CoverageView({ refreshKey = 0 }) {
             </tr>
           </thead>
           <tbody>
-            {Object.entries(rows).map(([name, row]) => {
+            {Object.entries(rows || {}).map(([name, row]) => {
               const isNotEnabled = row.status === 'Not enabled in this build' || row.mode === 'DISABLED';
               return (
                 <tr className="border-t border-white/5 hover:bg-white/[0.02]" key={name}>
@@ -65,6 +71,7 @@ export default function CoverageView({ refreshKey = 0 }) {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 }

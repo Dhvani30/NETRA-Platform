@@ -19,6 +19,8 @@ export default {
         },
       },
       fontFamily: {
+        sans: ['"Space Grotesk"', "system-ui", "sans-serif"],
+        mono: ['"JetBrains Mono"', "ui-monospace", "monospace"],
         "netra-sans": ["var(--ds-font-sans)", "system-ui", "sans-serif"],
         "netra-mono": ["var(--ds-font-mono)", "monospace"],
       },

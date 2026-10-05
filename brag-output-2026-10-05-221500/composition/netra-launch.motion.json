@@ -1,0 +1,1 @@
+{"version":1,"assertions":[{"selector":"#s1 .core","at":4.5,"visible":true},{"selector":"#graph","at":20,"visible":true},{"selector":"#s5 .confidence","at":37,"visible":true},{"selector":"#s6 .instrument","at":44,"visible":true},{"selector":"#s8 .mark","at":55,"visible":true},{"selector":"#s9 .final","at":58.5,"visible":true}]}

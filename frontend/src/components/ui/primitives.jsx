@@ -10,6 +10,7 @@ const Button = forwardRef(function Button({
   children,
   ...props
 }, ref) {
+  const appearance = variant === 'metal' ? 'primary' : variant
   const stateClass = [active && 'is-active', loading && 'is-loading', invalid && 'is-invalid']
     .filter(Boolean)
     .join(' ')
@@ -17,7 +18,7 @@ const Button = forwardRef(function Button({
   return (
     <button
       ref={ref}
-      className={`ds-button ds-button--${variant} ${stateClass} ${className}`.trim()}
+      className={`ds-button ds-button--${appearance} ${stateClass} ${className}`.trim()}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       aria-pressed={active || undefined}
@@ -82,7 +83,7 @@ function GlassCard({
   return (
     <div
       ref={cardRef}
-      className={`ds-card ds-card--${variant} ${isInteractive ? 'is-interactive' : ''} ${className}`.trim()}
+      className={`glass ds-card ds-card--${variant} ${isInteractive ? 'is-interactive' : ''} ${className}`.trim()}
       onClick={onClick}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
@@ -130,7 +131,7 @@ function PillTabs({ tabs = [], activeTab, onChange, className = '' }) {
   const overflowTabs = tabs.length > maxVisible ? tabs.slice(maxVisible) : [];
 
   return (
-    <div className={`ds-pill-tabs ${className}`}>
+    <div className={`ds-pill-tabs relative z-[100] ${showMore ? 'is-open' : ''} ${className}`.trim()}>
       {visibleTabs.map((tab) => {
         const id = typeof tab === 'string' ? tab : tab.id;
         const label = typeof tab === 'string' ? tab : tab.label;
@@ -156,7 +157,7 @@ function PillTabs({ tabs = [], activeTab, onChange, className = '' }) {
             Filters ({overflowTabs.length}) ▾
           </button>
           {showMore && (
-            <div className="ds-pill-tabs__dropdown">
+            <div className="ds-pill-tabs__dropdown z-[100]">
               {overflowTabs.map((tab) => {
                 const id = typeof tab === 'string' ? tab : tab.id;
                 const label = typeof tab === 'string' ? tab : tab.label;
@@ -230,7 +231,9 @@ function DataTable({ columns = [], data = [], maxRows = 8, onRowClick, className
             {visibleData.map((row, rIdx) => (
               <tr
                 key={rIdx}
+                tabIndex={onRowClick ? 0 : undefined}
                 onClick={() => onRowClick?.(row)}
+                onKeyDown={onRowClick ? (event) => { if (event.key === 'Enter') onRowClick(row); } : undefined}
                 className={onRowClick ? 'cursor-pointer hover:bg-white/[0.04]' : ''}
               >
                 {columns.slice(0, 6).map((col, cIdx) => (
@@ -264,10 +267,11 @@ function Badge({ variant = 'neutral', className = '', ...props }) {
 
 const STATUS_BADGES = { LIVE: 'live', SYNTH: 'synth', IDLE: 'idle', ERROR: 'error', DISABLED: 'disabled' };
 
-function StatusBadge({ status = 'IDLE', className = '', children, ...props }) {
+function StatusBadge({ status = 'IDLE', fresh = false, className = '', children, ...props }) {
   const key = String(status || 'IDLE').toUpperCase();
   const variant = STATUS_BADGES[key] || 'idle';
-  return <Badge variant={variant} className={className} {...props}>{children || key}</Badge>;
+  const pulsing = key === 'LIVE' && fresh;
+  return <Badge variant={variant} className={`${pulsing ? 'is-fresh' : ''} ${className}`.trim()} {...props}>{children || key}</Badge>;
 }
 
 export { Button, Input, Card, GlassCard, KpiCard, PillTabs, FloatingStatCard, ChartCard, DataTable, Badge, StatusBadge }

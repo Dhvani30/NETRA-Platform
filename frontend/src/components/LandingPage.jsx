@@ -1,19 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import {
-  ArrowRight, ShieldCheck, Activity, TrendingUp, ChevronRight
+  ArrowRight, ShieldCheck, Activity, TrendingUp, ChevronRight, Search
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { Badge, Button, GlassCard } from './ui/primitives';
+import { Badge, Button, GlassCard, Input } from './ui/primitives';
 import { useInView, Reveal } from './ui/useInView.jsx';
 import { AnimatedLine } from './ui/AnimatedLine';
 import { API_URL } from '../config';
 
-export default function LandingPage({ onOpenDashboard }) {
+export default function LandingPage({ onOpenDashboard, onSearch }) {
   // Header scroll detection (>40px gains glass)
   const [isScrolled, setIsScrolled] = useState(false);
   const [liveSummary, setLiveSummary] = useState(null);
   const [summaryState, setSummaryState] = useState('loading');
+  const [heroQuery, setHeroQuery] = useState('');
 
   // Hero 3D tilt state
   const heroCardRef = useRef(null);
@@ -64,6 +65,12 @@ export default function LandingPage({ onOpenDashboard }) {
   const scrollToSection = (id) => {
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const submitHeroSearch = (event) => {
+    event.preventDefault();
+    const query = heroQuery.trim();
+    if (query) onSearch?.(query);
   };
 
   // In-view hooks for specific scroll sequences
@@ -145,6 +152,27 @@ export default function LandingPage({ onOpenDashboard }) {
               <p className="text-sm text-[#8E92B0] leading-relaxed max-w-lg">
                 NETRA ingests, analyzes, and correlates public threat signals across social channels into actionable network graph intelligence.
               </p>
+            </Reveal>
+
+            <Reveal delay={200} duration={400} direction="up">
+              <form onSubmit={submitHeroSearch} className="glass relative max-w-xl rounded-2xl border border-white/15 bg-white/[0.07] p-2 shadow-[0_18px_50px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <div className="relative min-w-0 flex-1">
+                    <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9A9EE8]" aria-hidden="true" />
+                    <Input
+                      type="search"
+                      value={heroQuery}
+                      onChange={(event) => setHeroQuery(event.target.value)}
+                      placeholder="Enter topic, narrative, or entity to investigate..."
+                      aria-label="Search NETRA intelligence"
+                      className="w-full border-white/10 bg-[#08091A]/60 py-3 pl-10 pr-3 text-sm text-white placeholder:text-[#777c9a] focus:border-[#9A9EE8]/70 focus:ring-[#9A9EE8]/25"
+                    />
+                  </div>
+                  <Button type="submit" variant="primary" className="btn-metal shrink-0 whitespace-nowrap text-xs">
+                    Search Intelligence <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </form>
             </Reveal>
 
             <Reveal delay={240} duration={400} direction="up">

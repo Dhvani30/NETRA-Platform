@@ -6,10 +6,11 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': {
+      // The frontend calls FastAPI exclusively through its versioned API prefix.
+      '/api/v1': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
-        // Keep /api/v1 intact: FastAPI serves that prefix directly.
+        // Do not rewrite: FastAPI serves /api/v1 directly.
         timeout: 0,
         proxyTimeout: 0,
       },

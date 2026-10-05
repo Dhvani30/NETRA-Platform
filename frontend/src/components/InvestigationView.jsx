@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Globe, MessageSquare, Share2, Activity, Video } from 'lucide-react';
+import { ArrowLeft, Globe, MessageSquare, Share2, Video } from 'lucide-react';
 import NetworkGraph from './NetworkGraph';
-import { Badge, Button, GlassCard, KpiCard, DataTable } from './ui/primitives';
+import { Badge, Button, GlassCard, Input, KpiCard } from './ui/primitives';
+import { EmptyState, ErrorState } from './ui/dataState';
 
-export default function InvestigationView({ investigationData, graphData, onBack, searchQuery, onSelectPost }) {
+export default function InvestigationView({ investigationData, graphData, graphError, onRetryGraph, onBack, onSearch, searchQuery = '', onSelectPost }) {
+  const [draft, setDraft] = useState('');
+  useEffect(() => { setDraft(searchQuery || ''); }, [searchQuery]);
   const [filteredGraph, setFilteredGraph] = useState({ nodes: [], links: [] });
 
   useEffect(() => {
@@ -52,48 +55,25 @@ export default function InvestigationView({ investigationData, graphData, onBack
     return <Globe className="w-4 h-4 text-emerald-400" />;
   };
 
-  const docs = investigationData?.documents || [];
+  const query = String(searchQuery || '').trim();
+  const docs = investigationData?.documents || investigationData?.posts || [];
+  const platforms = investigationData?.platforms || investigationData?.summary?.platforms || [];
 
-  const columns = [
-    {
-      header: 'Platform',
-      accessorKey: 'platform',
-      cell: (row) => (
-        <div className="flex items-center gap-2">
-          {getPlatformIcon(row.platform)}
-          <span className="font-semibold text-xs uppercase">{row.platform || 'WEB'}</span>
+  if (!query) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <span className="netra-page-eyebrow">Deep Investigation Mode</span>
+          <h1 className="netra-page-title">Deep <span>Search</span></h1>
         </div>
-      )
-    },
-    {
-      header: 'Mode',
-      accessorKey: 'source_mode',
-      cell: (row) => {
-        const mode = row.source_mode || (row.metadata?.source_mode) || 'SYNTH';
-        const modeClass = mode === 'LIVE_THIRD_PARTY' ? 'pill--live-third-party' : mode === 'LIVE' ? 'pill--live' : mode === 'IMPORT' ? 'pill--import' : 'pill--synth';
-        return <span className={`pill text-[9px] ${modeClass}`}>{mode}</span>;
-      }
-    },
-    {
-      header: 'Author (Hashed)',
-      accessorKey: 'author_id',
-      cell: (row) => (
-        <span className="font-mono text-xs text-indigo-300">
-          @{String(row.author_short_id || row.author_id || 'masked').slice(0, 12)}
-        </span>
-      )
-    },
-    {
-      header: 'Content Snippet',
-      accessorKey: 'text_content',
-      cell: (row) => <span className="text-gray-200 line-clamp-1 max-w-xl">{row.text_content || row.content || row.text}</span>
-    },
-    {
-      header: 'Date',
-      accessorKey: 'published_at',
-      cell: (row) => <span className="text-gray-400 text-xs">{row.published_at || row.created_at ? new Date(row.published_at || row.created_at).toLocaleDateString() : 'Recent'}</span>
-    }
-  ];
+        <form className="flex max-w-lg items-center gap-2" onSubmit={(event) => { event.preventDefault(); onSearch?.(draft); }}>
+          <Input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Enter a query" aria-label="Investigation query" />
+          <Button type="submit" variant="primary">Search</Button>
+        </form>
+        <p className="text-sm text-slate-400">Enter a query and press Search. Nothing is fetched until you submit.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -105,7 +85,7 @@ export default function InvestigationView({ investigationData, graphData, onBack
           </Button>
           <div>
             <span className="netra-page-eyebrow">Deep Investigation Mode</span>
-            <h1 className="netra-page-title">Entity: <span>{searchQuery.toUpperCase()}</span></h1>
+            <h1 className="netra-page-title">Entity: <span>{query}</span></h1>
           </div>
         </div>
         <Badge variant="accent">{docs.length} matching observations</Badge>
@@ -134,7 +114,7 @@ export default function InvestigationView({ investigationData, graphData, onBack
         <div className="col-span-12 md:col-span-6 lg:col-span-3">
           <KpiCard
             label="Platforms Covered"
-            value={investigationData?.platforms?.length || 1}
+            value={platforms.length}
             delta="Multi-channel"
             deltaType="positive"
             subtext="Vector coverage"
@@ -142,33 +122,79 @@ export default function InvestigationView({ investigationData, graphData, onBack
         </div>
         <div className="col-span-12 md:col-span-6 lg:col-span-3">
           <KpiCard
-            label="Threat Level"
-            value="Moderate"
-            delta="Monitored"
-            deltaType="warning"
-            subtext="Assessment index"
+            label="Linked Posts"
+            value={filteredGraph.links.length}
+            delta="From the graph API"
+            deltaType="neutral"
+            subtext="Edges in the subgraph"
           />
         </div>
       </div>
 
-      {/* Focal Network Graph Subgraph */}
-      <GlassCard className="p-6">
-        <h2 className="text-base font-semibold text-gray-100 mb-4">Investigated Subgraph Connections</h2>
-        <NetworkGraph graphData={filteredGraph} highlightQuery={searchQuery} />
-      </GlassCard>
+      {graphError ? (
+        <ErrorState error={{ message: graphError }} onRetry={onRetryGraph} />
+      ) : filteredGraph.nodes.length === 0 ? (
+        <EmptyState>The graph endpoint returned no nodes for this query.</EmptyState>
+      ) : (
+        <GlassCard className="p-4">
+          <h2 className="mb-3 text-base font-medium text-gray-100">Investigated Subgraph Connections</h2>
+          <NetworkGraph graphData={filteredGraph} highlightQuery={searchQuery} />
+        </GlassCard>
+      )}
 
-      {/* Secondary Table of Matched Messages */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-100">Investigated Messages Stream</h2>
-          {docs.some(d => ['x', 'twitter'].includes((d.platform || '').toLowerCase())) && (
-            <span className="text-[11px] text-amber-200/90 italic">
-              X data: public datasets plus a capped third-party sample; not the official X API.
-            </span>
-          )}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-base font-medium text-gray-100">Investigated Messages</h2>
+          <span className="pill font-mono text-[10px]">{docs.length}</span>
         </div>
-        <DataTable columns={columns} data={docs} maxRows={8} onRowClick={onSelectPost} />
-      </div>
+        {docs.length === 0 ? (
+          <EmptyState>No collected posts matched this query.</EmptyState>
+        ) : (
+          <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {docs.map((row, index) => {
+              const mode = row.source_mode || row.metadata?.source_mode || '—';
+              const id = row.canonical_id || row.post_id || row.native_id || index;
+              const text = row.text_content || row.content || row.text || '';
+              const when = row.published_at || row.created_at;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  className="glass relative z-10 p-4 text-left"
+                  onClick={() => onSelectPost?.(row)}
+                >
+                  <header className="flex items-center justify-between gap-3">
+                    <span className="flex min-w-0 items-center gap-2 text-sm font-medium uppercase text-white">
+                      {getPlatformIcon(row.platform)}
+                      <span className="truncate">{row.platform || 'WEB'}</span>
+                    </span>
+                    <span className="pill shrink-0 font-mono text-[10px]">{String(id).slice(0, 8)}</span>
+                  </header>
+                  <p className="mt-3 line-clamp-3 text-xs leading-relaxed text-slate-300">{text || 'No text stored for this item.'}</p>
+                  <dl className="mt-3 grid grid-cols-3 gap-2">
+                    <div>
+                      <dt className="label-xs">Mode</dt>
+                      <dd className="mt-1 font-mono text-[11px] text-slate-200">{mode}</dd>
+                    </div>
+                    <div>
+                      <dt className="label-xs">Author</dt>
+                      <dd className="mt-1 truncate font-mono text-[11px] text-slate-200">
+                        {String(row.author_short_id || row.author_id || 'masked').slice(0, 10)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="label-xs">Date</dt>
+                      <dd className="mt-1 font-mono text-[11px] text-slate-200">
+                        {when ? new Date(when).toLocaleDateString() : '—'}
+                      </dd>
+                    </div>
+                  </dl>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

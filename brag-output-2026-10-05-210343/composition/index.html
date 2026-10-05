@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920,height=1080">
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --b: #08091a;
+        --w: #f2f3fa;
+        --m: #8e92b0;
+        --a: #9a9ee8;
+        --c: #89d9e8;
+        --r: #dc8c71;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--b);
+      }
+      body {
+        font-family: Arial, sans-serif;
+        color: var(--w);
+      }
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background:
+          radial-gradient(ellipse at 78% 25%, #242852 0%, transparent 45%),
+          var(--b);
+      }
+      .clip,
+      .inside {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+      }
+      .clip {
+        isolation: isolate;
+      }
+      .grid {
+        position: absolute;
+        inset: 0;
+        opacity: 0.32;
+        background-image:
+          linear-gradient(#9a9ee822 1px, transparent 1px),
+          linear-gradient(90deg, #9a9ee822 1px, transparent 1px);
+        background-size: 64px 64px;
+        mask-image: radial-gradient(ellipse, black 15%, transparent 72%);
+      }
+      .ey {
+        font:
+          18px "Courier New",
+          monospace;
+        letter-spacing: 0.18em;
+        color: var(--a);
+      }
+      .h {
+        font-size: 108px;
+        line-height: 0.9;
+        letter-spacing: -0.06em;
+        font-weight: 700;
+      }
+      .h i {
+        font-style: normal;
+        color: var(--a);
+      }
+      .p {
+        font-size: 27px;
+        line-height: 1.4;
+        color: #c9cce0;
+        max-width: 650px;
+      }
+      .layer {
+        position: absolute;
+        left: 120px;
+        bottom: 82px;
+      }
+      .frag {
+        position: absolute;
+        padding: 15px 19px;
+        border: 1px solid #b8bbee55;
+        background: #0d1030cc;
+        color: #dfe2fa;
+        font:
+          15px "Courier New",
+          monospace;
+        letter-spacing: 0.07em;
+      }
+      .frag b {
+        color: var(--c);
+      }
+      .mark {
+        width: 180px;
+        height: 180px;
+        border: 3px solid var(--w);
+        border-radius: 28px;
+        display: grid;
+        place-items: center;
+        transform: rotate(45deg);
+        box-shadow: 0 0 70px #9a9ee866;
+      }
+      .mark span {
+        font-size: 118px;
+        font-weight: 800;
+        transform: rotate(-45deg);
+        margin-left: -13px;
+      }
+      .center {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      .word {
+        font-size: 104px;
+        font-weight: 700;
+        letter-spacing: 0.22em;
+        margin: 0.35em 0 0 0.22em;
+      }
+      .desc {
+        font-size: 20px;
+        letter-spacing: 0.11em;
+        color: #c9cce0;
+      }
+      .tag {
+        margin-top: 32px;
+        color: var(--a);
+        font:
+          18px "Courier New",
+          monospace;
+        letter-spacing: 0.13em;
+      }
+      .pipe {
+        position: absolute;
+        right: 155px;
+        top: 190px;
+        width: 690px;
+      }
+      .step {
+        height: 90px;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        font:
+          23px "Courier New",
+          monospace;
+        letter-spacing: 0.1em;
+      }
+      .dot,
+      .node {
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--a);
+        border-radius: 50%;
+        box-shadow: 0 0 16px var(--a);
+      }
+      .step:after {
+        content: "";
+        height: 1px;
+        flex: 1;
+        background: #b8bbee66;
+      }
+      .graph {
+        position: absolute;
+        inset: 0;
+      }
+      .line {
+        position: absolute;
+        height: 2px;
+        background: #9a9ee855;
+        transform-origin: left;
+      }
+      .line.hot {
+        background: var(--c);
+        box-shadow: 0 0 12px var(--c);
+      }
+      .node {
+        position: absolute;
+        background: var(--a);
+      }
+      .node.hot {
+        width: 25px;
+        height: 25px;
+        background: var(--r);
+        box-shadow: 0 0 27px var(--r);
+        border: 0;
+      }
+      .label {
+        position: absolute;
+        font:
+          15px "Courier New",
+          monospace;
+        letter-spacing: 0.08em;
+        color: #dfe2fa;
+      }
+      .threat {
+        position: absolute;
+        top: 135px;
+        left: 120px;
+        width: 460px;
+        padding: 28px 30px;
+        border-left: 3px solid var(--r);
+        background: #171226d9;
+        box-shadow: 0 20px 70px #0008;
+      }
+      .threat h3 {
+        margin: 0 0 22px;
+        color: #f0b19d;
+        font:
+          21px "Courier New",
+          monospace;
+        letter-spacing: 0.11em;
+      }
+      .threat p {
+        font:
+          18px "Courier New",
+          monospace;
+        letter-spacing: 0.07em;
+      }
+      .threat small {
+        color: var(--m);
+      }
+      .shell {
+        position: absolute;
+        inset: 78px 84px;
+        border: 1px solid #b8bbee66;
+        border-radius: 18px;
+        background: #101333ee;
+        box-shadow: 0 40px 90px #0009;
+        overflow: hidden;
+      }
+      .top {
+        height: 72px;
+        border-bottom: 1px solid #b8bbee44;
+        padding: 0 28px;
+        display: flex;
+        align-items: center;
+        gap: 19px;
+      }
+      .mini {
+        width: 30px;
+        height: 30px;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--w);
+        border-radius: 6px;
+        font-weight: bold;
+      }
+      .search {
+        margin-left: 55px;
+        width: 560px;
+        padding: 12px 17px;
+        border: 1px solid #b8bbee77;
+        color: #dfe2fa;
+        font:
+          16px "Courier New",
+          monospace;
+      }
+      .live {
+        margin-left: auto;
+        color: #8de4b6;
+        font:
+          14px "Courier New",
+          monospace;
+        letter-spacing: 0.1em;
+      }
+      .side {
+        position: absolute;
+        top: 72px;
+        bottom: 0;
+        width: 275px;
+        padding: 28px 22px;
+        border-right: 1px solid #b8bbee33;
+      }
+      .side h4,
+      .right h4 {
+        margin: 0 0 18px;
+        color: var(--m);
+        font:
+          14px "Courier New",
+          monospace;
+        letter-spacing: 0.13em;
+      }
+      .row {
+        padding: 16px 0;
+        border-bottom: 1px solid #b8bbee22;
+        color: #dfe2fa;
+        font-size: 15px;
+      }
+      .row b {
+        font-family: "Courier New", monospace;
+        color: var(--c);
+      }
+      .right {
+        position: absolute;
+        right: 0;
+        top: 72px;
+        bottom: 0;
+        width: 300px;
+        padding: 28px 22px;
+        border-left: 1px solid #b8bbee33;
+      }
+      .met {
+        padding: 0 0 21px;
+        margin: 0 0 20px;
+        border-bottom: 1px solid #b8bbee22;
+      }
+      .met label {
+        display: block;
+        color: var(--m);
+        font:
+          13px "Courier New",
+          monospace;
+        letter-spacing: 0.1em;
+      }
+      .met strong {
+        font-size: 26px;
+      }
+      .map {
+        position: absolute;
+        left: 275px;
+        right: 300px;
+        top: 72px;
+        bottom: 0;
+      }
+      .curve {
+        position: absolute;
+        left: 35px;
+        right: 35px;
+        bottom: 45px;
+        height: 130px;
+        border-top: 1px solid #b8bbee55;
+      }
+      .curve:after {
+        content: "";
+        position: absolute;
+        inset: 20px 0;
+        background: linear-gradient(
+          165deg,
+          transparent 0 42%,
+          var(--a) 43% 44%,
+          transparent 45% 63%,
+          var(--a) 64% 66%,
+          transparent 67%
+        );
+      }
+      .three {
+        position: absolute;
+        left: 120px;
+        bottom: 130px;
+        display: flex;
+        gap: 38px;
+        font-size: 52px;
+        font-weight: bold;
+      }
+      .three span {
+        display: block;
+        margin-top: 10px;
+        color: var(--m);
+        font:
+          15px "Courier New",
+          monospace;
+        letter-spacing: 0.12em;
+      }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-a7kj" id="root" data-composition-id="netra-launch" data-start="0" data-duration="60" data-width="1920" data-height="1080">
+      <audio data-hf-id="hf-50z5" id="score" data-start="0" data-duration="60" data-volume="0.32" src="assets/music/happy-beats-business-moves-vol-12-by-ende-dot-app.mp3"></audio><audio data-hf-id="hf-ylsl" id="impact" data-start="7" data-duration="0.18" data-volume="0.48" src="assets/sfx/impact/impactSoft_medium_001.ogg"></audio>
+      <section data-hf-id="hf-uytb" class="clip" data-start="0" id="scene-signal" data-duration="6" data-track-index="0">
+        <div data-hf-id="hf-guqm" class="inside" id="s1">
+          <div data-hf-id="hf-kxq8" class="grid"></div>
+          <div data-hf-id="hf-dg6w" class="frag f" style="left: 115px; top: 185px">
+            <b data-hf-id="hf-omcn">POST</b> / narrative velocity
+          </div>
+          <div data-hf-id="hf-p6lv" class="frag f" style="left: 1310px; top: 165px">
+            <b data-hf-id="hf-7il2">#HASHTAG</b> / emerging
+          </div>
+          <div data-hf-id="hf-vlmp" class="frag f" style="left: 1120px; top: 670px">
+            <b data-hf-id="hf-5afa">LOCATION</b> / regional cluster
+          </div>
+          <div data-hf-id="hf-7dgh" class="frag f" style="left: 1370px; top: 785px">
+            <b data-hf-id="hf-t3qy">ENTITY</b> / relationship found
+          </div>
+          <div data-hf-id="hf-dx93" class="frag f" style="left: 745px; top: 125px">
+            <b data-hf-id="hf-n12c">MESSAGE</b> / context window
+          </div>
+          <div data-hf-id="hf-a8wf" class="layer">
+            <div data-hf-id="hf-isme" class="ey">NETRA / SIGNAL LAYER</div>
+            <div data-hf-id="hf-ivi4" class="h" style="margin-top: 25px">
+              THE WORLD<br data-hf-id="hf-x5px">IS <i data-hf-id="hf-yabs">TALKING.</i>
+            </div>
+            <div data-hf-id="hf-ob9l" class="p" style="margin-top: 28px">
+              CAN YOU HEAR THE SIGNAL?
+            </div>
+          </div>
+        </div>
+      </section>
+      <section data-hf-id="hf-3gkb" class="clip" data-start="6" id="scene-reveal" data-duration="7" data-track-index="0">
+        <div data-hf-id="hf-4thu" class="inside center" id="s2">
+          <div data-hf-id="hf-6qwo" class="grid"></div>
+          <div data-hf-id="hf-m9na" class="mark rm"><span data-hf-id="hf-gtkt">N</span></div>
+          <div data-hf-id="hf-1h09" class="word rw">NETRA</div>
+          <div data-hf-id="hf-ey2d" class="desc rd">
+            NETWORK ENGINE FOR THREAT RECOGNITION &amp; ANALYTICS
+          </div>
+          <div data-hf-id="hf-ttrg" class="tag rt">
+            TURNING SOCIAL SIGNALS INTO ACTIONABLE INTELLIGENCE.
+          </div>
+        </div>
+      </section>
+      <section data-hf-id="hf-5oq7" class="clip" data-start="13" id="scene-ingestion" data-duration="11" data-track-index="0">
+        <div data-hf-id="hf-c4ys" class="inside" id="s3">
+          <div data-hf-id="hf-5jzl" class="grid"></div>
+          <div data-hf-id="hf-rnan" class="layer">
+            <div data-hf-id="hf-h2p5" class="ey pe">INGEST / NORMALIZE / EXTRACT</div>
+            <div data-hf-id="hf-aypi" class="h ph" style="margin-top: 26px">
+              FROM <i data-hf-id="hf-hud4">NOISE…</i><br data-hf-id="hf-rsrt">…TO STRUCTURE.
+            </div>
+            <div data-hf-id="hf-tqbt" class="p pc" style="margin-top: 30px">
+              Raw conversations become entities, topics, sentiment and
+              relationships.
+            </div>
+          </div>
+          <div data-hf-id="hf-a338" class="pipe">
+            <div data-hf-id="hf-1wft" class="step ps"><i data-hf-id="hf-6bgx" class="dot"></i>RAW POST</div>
+            <div data-hf-id="hf-ba2b" class="step ps"><i data-hf-id="hf-0j5x" class="dot"></i>ENTITY EXTRACTION</div>
+            <div data-hf-id="hf-9j9s" class="step ps"><i data-hf-id="hf-1q30" class="dot"></i>TOPIC + SENTIMENT</div>
+            <div data-hf-id="hf-l1e1" class="step ps"><i data-hf-id="hf-1brz" class="dot"></i>RELATIONSHIP MAP</div>
+            <div data-hf-id="hf-zklz" class="step ps"><i data-hf-id="hf-2ip2" class="dot"></i>THREAT SIGNAL</div>
+          </div>
+        </div>
+      </section>
+      <section data-hf-id="hf-zif6" class="clip" data-start="24" id="scene-graph" data-duration="10" data-track-index="0">
+        <div data-hf-id="hf-zmgb" class="inside" id="s4">
+          <div data-hf-id="hf-5yam" class="grid"></div>
+          <div data-hf-id="hf-iwy4" class="graph gm">
+            <i data-hf-id="hf-g1ji" class="line" style="
+                left: 390px;
+                top: 300px;
+                width: 600px;
+                transform: rotate(21deg);
+              "></i><i data-hf-id="hf-e42s" class="line" style="
+                left: 670px;
+                top: 720px;
+                width: 360px;
+                transform: rotate(-31deg);
+              "></i><i data-hf-id="hf-3zwm" class="line hot" style="
+                left: 925px;
+                top: 510px;
+                width: 500px;
+                transform: rotate(-23deg);
+              "></i><i data-hf-id="hf-2y29" class="line" style="
+                left: 925px;
+                top: 510px;
+                width: 570px;
+                transform: rotate(23deg);
+              "></i><i data-hf-id="hf-6q89" class="node" style="left: 382px; top: 292px"></i><i data-hf-id="hf-mcd3" class="node" style="left: 662px; top: 712px"></i><i data-hf-id="hf-00i4" class="node hot" style="left: 908px; top: 498px"></i><i data-hf-id="hf-gk4g" class="node" style="left: 1412px; top: 292px"></i><i data-hf-id="hf-whfq" class="node" style="left: 1462px; top: 732px"></i><b data-hf-id="hf-kmjl" class="label" style="left: 330px; top: 330px">CONVERSATION</b><b data-hf-id="hf-y3rr" class="label" style="left: 935px; top: 540px; color: #89d9e8">ENTITY CLUSTER</b><b data-hf-id="hf-2c7o" class="label" style="left: 1350px; top: 330px">ORGANIZATION</b>
+          </div>
+          <div data-hf-id="hf-r8zm" class="layer">
+            <div data-hf-id="hf-dhtt" class="ey ie">THE INTELLIGENCE GRAPH</div>
+            <div data-hf-id="hf-sctd" class="h ih" style="margin-top: 20px">
+              FIND THE<br data-hf-id="hf-8wfn"><i data-hf-id="hf-szow">SIGNAL.</i>
+            </div>
+            <div data-hf-id="hf-onmb" class="p ip" style="margin-top: 25px">
+              HIDDEN IN THE NOISE.
+            </div>
+          </div>
+        </div>
+      </section>
+      <section data-hf-id="hf-mnrk" class="clip" data-start="34" id="scene-threat" data-duration="11" data-track-index="0">
+        <div data-hf-id="hf-voca" class="inside" id="s5">
+          <div data-hf-id="hf-4rdj" class="grid"></div>
+          <div data-hf-id="hf-zvex" class="graph fg">
+            <i data-hf-id="hf-45tc" class="line hot" style="
+                left: 780px;
+                top: 385px;
+                width: 285px;
+                transform: rotate(30deg);
+              "></i><i data-hf-id="hf-4cij" class="line hot" style="
+                left: 1010px;
+                top: 520px;
+                width: 240px;
+                transform: rotate(-22deg);
+              "></i><i data-hf-id="hf-vbdl" class="line hot" style="
+                left: 1010px;
+                top: 520px;
+                width: 300px;
+                transform: rotate(28deg);
+              "></i><i data-hf-id="hf-niei" class="node" style="left: 772px; top: 377px"></i><i data-hf-id="hf-w0rh" class="node hot" style="left: 996px; top: 506px"></i><i data-hf-id="hf-7vlq" class="node hot" style="left: 1237px; top: 407px"></i><i data-hf-id="hf-yzvp" class="node hot" style="left: 1297px; top: 657px"></i>
+          </div>
+          <div data-hf-id="hf-jewn" class="threat tc">
+            <h3 data-hf-id="hf-wdxq">SEE WHERE IT'S HAPPENING.</h3>
+            <p data-hf-id="hf-mixw"><small data-hf-id="hf-b0x8">FOCUS</small> COORDINATED ACTIVITY</p>
+            <p data-hf-id="hf-qqpg"><small data-hf-id="hf-gtrx">INDICATOR</small> ACTIVITY SPIKE</p>
+            <p data-hf-id="hf-r7b5"><small data-hf-id="hf-d6av">CONTEXT</small> RELATED ENTITIES</p>
+          </div>
+          <div data-hf-id="hf-xf4t" style="
+              position: absolute;
+              right: 125px;
+              bottom: 130px;
+              text-align: right;
+            ">
+            <div data-hf-id="hf-6h69" class="ey fe">INVESTIGATE THE PATTERN</div>
+            <div data-hf-id="hf-h4qf" class="h fh" style="font-size: 78px; margin-top: 16px">
+              NETWORK TO<br data-hf-id="hf-sldv"><i data-hf-id="hf-5ksy">GEOGRAPHY.</i>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section data-hf-id="hf-ea6r" class="clip" data-start="45" id="scene-dashboard" data-duration="9" data-track-index="0">
+        <div data-hf-id="hf-rq89" class="inside" id="s6">
+          <div data-hf-id="hf-h4fw" class="shell db">
+            <div data-hf-id="hf-sijt" class="top">
+              <div data-hf-id="hf-1hz5" class="mini">N</div>
+              <b data-hf-id="hf-xdjm" style="letter-spacing: 0.15em">NETRA</b>
+              <div data-hf-id="hf-piow" class="search">
+                Deep Search / coordinated narrative activity
+              </div>
+              <div data-hf-id="hf-u9cj" class="live">LIVE TELEMETRY</div>
+            </div>
+            <div data-hf-id="hf-cww1" class="side">
+              <h4 data-hf-id="hf-bq4a">LIVE SIGNALS</h4>
+              <div data-hf-id="hf-0gx3" class="row"><b data-hf-id="hf-dg6f">12:41</b> — Activity spike detected</div>
+              <div data-hf-id="hf-qwo2" class="row"><b data-hf-id="hf-cnkd">12:43</b> — Entity cluster identified</div>
+              <div data-hf-id="hf-w9dl" class="row"><b data-hf-id="hf-f1ej">12:45</b> — Sentiment shift detected</div>
+              <div data-hf-id="hf-6d0x" class="row"><b data-hf-id="hf-e8sh">12:47</b> — Investigation updated</div>
+            </div>
+            <div data-hf-id="hf-znxm" class="map">
+              <div data-hf-id="hf-68ok" class="graph">
+                <i data-hf-id="hf-f5qz" class="line" style="
+                    left: 80px;
+                    top: 110px;
+                    width: 370px;
+                    transform: rotate(27deg);
+                  "></i><i data-hf-id="hf-8bgn" class="line hot" style="
+                    left: 410px;
+                    top: 275px;
+                    width: 280px;
+                    transform: rotate(-24deg);
+                  "></i><i data-hf-id="hf-qa3i" class="line hot" style="
+                    left: 410px;
+                    top: 275px;
+                    width: 320px;
+                    transform: rotate(27deg);
+                  "></i><i data-hf-id="hf-lbat" class="node" style="left: 72px; top: 102px"></i><i data-hf-id="hf-xne3" class="node hot" style="left: 397px; top: 262px"></i><i data-hf-id="hf-3y3c" class="node" style="left: 682px; top: 142px"></i><i data-hf-id="hf-uq01" class="node" style="left: 722px; top: 412px"></i>
+              </div>
+              <div data-hf-id="hf-kt35" class="curve"></div>
+            </div>
+            <div data-hf-id="hf-8dr2" class="right">
+              <h4 data-hf-id="hf-1sfg">THREAT INTELLIGENCE</h4>
+              <div data-hf-id="hf-k722" class="met">
+                <label data-hf-id="hf-qolj">STATUS</label><strong data-hf-id="hf-qhjb" style="color: #f0b19d">REVIEW</strong>
+              </div>
+              <div data-hf-id="hf-nuxq" class="met">
+                <label data-hf-id="hf-gdrd">CONFIDENCE</label><strong data-hf-id="hf-vkoi">HIGH</strong>
+              </div>
+              <div data-hf-id="hf-o98r" class="met">
+                <label data-hf-id="hf-pywk">ACTIVITY</label><strong data-hf-id="hf-qkfc">RISING</strong>
+              </div>
+              <div data-hf-id="hf-onjs" class="met">
+                <label data-hf-id="hf-tmw8">AFFECTED REGIONS</label><strong data-hf-id="hf-yrdk" style="font-size: 18px">MUMBAI · DELHI · PUNE</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section data-hf-id="hf-zc9b" class="clip" data-start="54" id="scene-outro" data-duration="6" data-track-index="0">
+        <div data-hf-id="hf-w5lz" class="inside center" id="s7">
+          <div data-hf-id="hf-55ok" class="grid"></div>
+          <div data-hf-id="hf-wqo8" class="three">
+            <div data-hf-id="hf-zuns" class="o">KNOW<span data-hf-id="hf-wtyz">WHAT MATTERS.</span></div>
+            <div data-hf-id="hf-ghhx" class="o">EMERGING<span data-hf-id="hf-due2">THREAT.</span></div>
+            <div data-hf-id="hf-ppr8" class="o">92%<span data-hf-id="hf-1hxp">CONFIDENCE.</span></div>
+          </div>
+          <div data-hf-id="hf-x90a" class="mark fm"><span data-hf-id="hf-hbkh">N</span></div>
+          <div data-hf-id="hf-q6i2" class="word fw" style="font-size: 88px">NETRA</div>
+          <div data-hf-id="hf-yi1m" class="desc fd" style="font-size: 17px">
+            NETWORK ENGINE FOR THREAT RECOGNITION &amp; ANALYTICS
+          </div>
+          <div data-hf-id="hf-ajjl" class="tag ft">FROM NOISE TO INTELLIGENCE.</div>
+        </div>
+      </section>
+    </div>
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo(
+        ".f",
+        { opacity: 0, scale: 0.82 },
+        {
+          opacity: 1,
+          scale: 1,
+          duration: 0.5,
+          stagger: 0.34,
+          ease: "power2.out",
+        },
+        0.2,
+      ).fromTo(
+        ".ey,.h,.p",
+        { opacity: 0, y: 38 },
+        { opacity: 1, y: 0, duration: 0.6, stagger: 0.15, ease: "power2.out" },
+        1.4,
+      );
+      tl.fromTo(
+        ".rm",
+        { opacity: 0, scale: 0.25, rotation: -25 },
+        { opacity: 1, scale: 1, rotation: 0, duration: 1, ease: "power3.out" },
+        6.25,
+      ).fromTo(
+        ".rw,.rd,.rt",
+        { opacity: 0, y: 28 },
+        { opacity: 1, y: 0, duration: 0.55, stagger: 0.18 },
+        7.25,
+      );
+      tl.fromTo(
+        ".pe,.ph,.pc",
+        { opacity: 0, x: -40 },
+        { opacity: 1, x: 0, duration: 0.6, stagger: 0.15 },
+        13.25,
+      ).fromTo(
+        ".ps",
+        { opacity: 0, x: 60 },
+        { opacity: 1, x: 0, duration: 0.42, stagger: 0.55 },
+        14,
+      );
+      tl.fromTo(
+        ".gm",
+        { opacity: 0, scale: 0.82 },
+        { opacity: 1, scale: 1, duration: 1.2 },
+        24,
+      ).fromTo(
+        ".ie,.ih,.ip",
+        { opacity: 0, y: 35 },
+        { opacity: 1, y: 0, duration: 0.55, stagger: 0.15 },
+        25,
+      );
+      tl.fromTo(
+        ".fg",
+        { opacity: 0.1, scale: 0.7, x: 180, y: 90 },
+        {
+          opacity: 1,
+          scale: 1.2,
+          x: 0,
+          y: 0,
+          duration: 1.6,
+          ease: "power3.out",
+        },
+        34,
+      )
+        .fromTo(
+          ".tc",
+          { opacity: 0, x: -70 },
+          { opacity: 1, x: 0, duration: 0.6 },
+          35.1,
+        )
+        .fromTo(
+          ".fe,.fh",
+          { opacity: 0, y: 32 },
+          { opacity: 1, y: 0, duration: 0.6, stagger: 0.15 },
+          36,
+        );
+      tl.fromTo(
+        ".db",
+        { opacity: 0, scale: 0.88, y: 45 },
+        { opacity: 1, scale: 1, y: 0, duration: 1.1, ease: "power3.out" },
+        45,
+      );
+    tl.fromTo(
+      ".o",
+        { opacity: 0, y: 30 },
+        { opacity: 1, y: 0, duration: 0.38, stagger: 0.56 },
+      54,
+    )
+      .to(".o", { opacity: 0, duration: 0.3 }, 55.25)
+      .fromTo(
+          ".fm",
+          { opacity: 0, scale: 0.3, rotation: -30 },
+          {
+            opacity: 1,
+            scale: 1,
+            rotation: 0,
+            duration: 0.7,
+            ease: "power3.out",
+          },
+          55.45,
+        )
+        .fromTo(
+          ".fw,.fd,.ft",
+          { opacity: 0, y: 22 },
+          { opacity: 1, y: 0, duration: 0.4, stagger: 0.14 },
+          56.05,
+        );
+      window.__timelines["netra-launch"] = tl;
+    </script>
+  </body>
+</html>

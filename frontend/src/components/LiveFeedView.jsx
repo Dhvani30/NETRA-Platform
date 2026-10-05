@@ -1,16 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Legend
 } from 'recharts';
 import {
   Activity, Play, Pause, ExternalLink, RefreshCw, Clock, Filter,
-  AlertCircle, CheckCircle2, ChevronRight, BarChart3, ListFilter
+  CheckCircle2, ChevronRight, BarChart3, ListFilter
 } from 'lucide-react';
 
-import { useLiveStream } from '../hooks/useLiveStream';
 import {
-  addEventToFeed,
   addEventsBatchToFeed,
   formatIngestedAgo,
   formatLatency,
@@ -18,22 +16,8 @@ import {
   MAX_LIVE_FEED_ITEMS
 } from '../utils/liveFeedReducer';
 import { API_URL } from '../config';
-import { WhyNothingArriving } from './ui/dataState';
+import { EmptyState, ErrorState } from './ui/dataState';
 import { sourceArrivalReason } from '../lib/emptyReason.js';
-
-const STATUS_HELP = {
-  LIVE: 'Collecting continuously from authorized provider connection.',
-  IMPORT: 'Serving verified historical dataset; not live telemetry.',
-  READY: 'Connector configured and ready for scheduled polling.',
-  CREDENTIALS_REQUIRED: 'Add required connector API token/secret to .env.',
-  PERMISSION_REQUIRED: 'Grant required provider permissions.',
-  RATE_LIMITED: 'Provider rate limit reached; retry scheduled.',
-  NO_CREDITS: 'Provider credit allowance exhausted.',
-  DEGRADED: 'Temporary network or upstream glitch; retry scheduled.',
-  DISABLED: 'Collection connector explicitly disabled.',
-  ERROR: 'Collector error encountered; review error message.',
-  IDLE: 'Collector idle; waiting for scheduled execution cycle.',
-};
 
 const PLATFORM_THEMES = {
   telegram: { label: 'Telegram', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.12)', border: 'rgba(56, 189, 248, 0.25)' },
@@ -46,7 +30,7 @@ const PLATFORM_THEMES = {
   bluesky: { label: 'Bluesky', color: '#0ea5e9', bg: 'rgba(14, 165, 233, 0.12)', border: 'rgba(14, 165, 233, 0.25)' },
 };
 
-export default function LiveFeedView({ onSelectPost, realOnly = true, refreshKey = 0 }) {
+export default function LiveFeedView({ onSelectPost }) {
   // Feed state
   const [feedItems, setFeedItems] = useState([]);
   const [isPaused, setIsPaused] = useState(false);
@@ -61,38 +45,26 @@ export default function LiveFeedView({ onSelectPost, realOnly = true, refreshKey
   const [sourcesData, setSourcesData] = useState({});
   const [runsData, setRunsData] = useState([]);
   const [loadingSummary, setLoadingSummary] = useState(false);
-  const [nowTs, setNowTs] = useState(Date.now());
+  const eventsLoadedOnce = useRef(false);
+  const proofLoadedOnce = useRef(false);
+  const [nowTs, setNowTs] = useState(() => Date.now());
 
-  // Second ticker to update "ingested Ns ago" continuously
-  useEffect(() => {
-    const timer = setInterval(() => setNowTs(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Handle incoming live event
-  const handleIncomingEvent = useCallback((events) => {
-    const incoming = Array.isArray(events) ? events : [events];
-    if (!incoming.length) return;
-    if (isPaused) {
-      setBuffer(prev => [...incoming, ...prev].slice(0, MAX_LIVE_FEED_ITEMS));
-    } else {
-      setFeedItems(prev => addEventsBatchToFeed(prev, incoming, MAX_LIVE_FEED_ITEMS));
-    }
-  }, [isPaused]);
-
-  // Hook connects to SSE stream with polling fallback
-  const { connected: isStreamConnected, state: streamState } = useLiveStream(handleIncomingEvent);
-
-  // Initial load of latest 50 events from REST
-  useEffect(() => {
+  const [feedError, setFeedError] = useState(null);
+  const loadEvents = useCallback(() => {
     axios.get(`${API_URL}/events/latest?limit=50`)
       .then(res => {
         if (res.data?.events) {
           setFeedItems(prev => addEventsBatchToFeed(prev, res.data.events, MAX_LIVE_FEED_ITEMS));
         }
+        setFeedError(null);
       })
-      .catch(() => {});
+      .catch(() => setFeedError("Can't reach the NETRA API. Start the backend and retry."));
   }, []);
+  useEffect(() => {
+    if (eventsLoadedOnce.current) return;
+    eventsLoadedOnce.current = true;
+    void loadEvents();
+  }, [loadEvents]);
 
   // Fetch summary and runs for proof panel
   const fetchProofData = useCallback(async () => {
@@ -106,20 +78,24 @@ export default function LiveFeedView({ onSelectPost, realOnly = true, refreshKey
       setSummaryData(sumRes.data || null);
       setSourcesData(srcRes.data || {});
       setRunsData(runRes.data?.runs || []);
-    } catch (err) {
-      console.error('Error fetching live proof:', err);
+      setFeedError(null);
+    } catch {
+      setFeedError("Can't reach the NETRA API. Start the backend and retry.");
     } finally {
       setLoadingSummary(false);
     }
   }, []);
 
-  // Initial proof snapshot. Later refresh keys update proof data without replacing the feed list.
+  // Initial proof snapshot only; Sync feed performs all subsequent network reads.
   useEffect(() => {
-    fetchProofData();
-  }, [fetchProofData, refreshKey]);
+    if (proofLoadedOnce.current) return;
+    proofLoadedOnce.current = true;
+    void fetchProofData();
+  }, [fetchProofData]);
 
   const syncFeed = useCallback(async () => {
     setLoadingSummary(true);
+    setNowTs(Date.now());
     try {
       const [eventsRes, sumRes, srcRes, runRes] = await Promise.all([
         axios.get(`${API_URL}/events/latest?limit=50`),
@@ -133,8 +109,8 @@ export default function LiveFeedView({ onSelectPost, realOnly = true, refreshKey
       setSummaryData(sumRes.data || null);
       setSourcesData(srcRes.data || {});
       setRunsData(runRes.data?.runs || []);
-    } catch (err) {
-      console.error('Error syncing live feed:', err);
+    } catch {
+      setFeedError("Can't reach the NETRA API. Start the backend and retry.");
     } finally {
       setLoadingSummary(false);
     }
@@ -201,9 +177,9 @@ export default function LiveFeedView({ onSelectPost, realOnly = true, refreshKey
               Live <span className="text-indigo-300 font-normal">Telemetry Stream</span>
             </h1>
             <div className="flex items-center gap-2">
-              <span className={`pill text-[11px] flex items-center gap-1.5 ${isStreamConnected ? 'pill--live' : 'pill--synth'}`}>
-                <span className={`w-2 h-2 rounded-full ${isStreamConnected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'}`} />
-                {isStreamConnected ? 'STREAM ACTIVE' : 'RECONNECTING'}
+              <span className="pill text-[11px] flex items-center gap-1.5 pill--synth">
+                <span className="w-2 h-2 rounded-full bg-slate-400" />
+                MANUAL SNAPSHOT
               </span>
               {isPaused && (
                 <span className="pill text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30">
@@ -363,18 +339,18 @@ export default function LiveFeedView({ onSelectPost, realOnly = true, refreshKey
           {/* Scrolling Feed Table */}
           <div className="glass overflow-hidden border border-white/10 rounded-xl">
             {filteredFeed.length === 0 ? (
-              <div className="p-12 text-center space-y-3">
-                <AlertCircle className="w-8 h-8 text-slate-500 mx-auto" />
-                <h3 className="text-sm font-medium text-slate-200">No telemetry events found</h3>
-                <p className="text-sm text-slate-300 max-w-md mx-auto">
-                  {platformFilter && sourcesData[platformFilter]
-                    ? sourceArrivalReason(platformFilter, sourcesData[platformFilter], nowTs)
-                    : 'No live rows match the current filters.'}
-                </p>
-                <WhyNothingArriving sources={sourcesData} />
-                <div className="text-[11px] text-slate-500 font-mono">
-                  State: {isStreamConnected ? 'Connected (Push SSE)' : streamState === 'polling' ? 'Polling every 10s' : 'Connecting...'}
-                </div>
+              <div className="p-4">
+                {feedError && feedItems.length === 0 ? (
+                  <ErrorState error={{ message: feedError }} onRetry={loadEvents} />
+                ) : feedItems.length === 0 ? (
+                  <EmptyState>No telemetry events have arrived yet.</EmptyState>
+                ) : (
+                  <p className="text-sm text-slate-400">
+                    {platformFilter && sourcesData[platformFilter]
+                      ? sourceArrivalReason(platformFilter, sourcesData[platformFilter], nowTs)
+                      : 'No live rows match the current filters.'}
+                  </p>
+                )}
               </div>
             ) : (
               <div className="overflow-x-auto max-h-[640px] overflow-y-auto divide-y divide-white/5">

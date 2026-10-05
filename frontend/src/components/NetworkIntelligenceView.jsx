@@ -3,7 +3,7 @@ import axios from 'axios';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Network, Users, GitMerge, Layers, RefreshCw, Share2, MessageSquare, Globe, Video } from 'lucide-react';
 import { Badge, Button, GlassCard, KpiCard, ChartCard } from './ui/primitives';
-import { WhyNothingArriving } from './ui/dataState';
+import { EmptyState, ErrorState, ScreenSkeleton } from './ui/dataState';
 
 import { API_URL } from '../config';
 
@@ -18,14 +18,16 @@ const getPlatformIcon = (name) => {
 export default function NetworkIntelligenceView({ refreshKey = 0 }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const fetchIntelligence = async () => {
     setLoading(true);
     try {
       const res = await axios.get(`${API_URL}/graph/intelligence?t=${Date.now()}`);
       setData(res.data);
+      setError(null);
     } catch (error) {
-      console.error("Error fetching graph intelligence:", error);
+      setError("Can't reach the NETRA API. Start the backend and retry.");
     } finally {
       setLoading(false);
     }
@@ -47,24 +49,16 @@ export default function NetworkIntelligenceView({ refreshKey = 0 }) {
 
         <Button variant="secondary" loading={loading} onClick={fetchIntelligence}>
           <RefreshCw className={loading ? 'animate-spin' : ''} />
-          {loading ? 'Recalculating…' : 'Recalculate'}
+          Recalculate
         </Button>
       </div>
 
-      {loading ? (
-        <GlassCard className="p-12 text-center flex flex-col items-center justify-center gap-3">
-          <RefreshCw className="w-8 h-8 text-indigo-400 animate-spin" />
-          <p className="text-gray-300 font-medium">Computing graph centrality metrics…</p>
-        </GlassCard>
+      {error ? (
+        <ErrorState error={{ message: error }} onRetry={fetchIntelligence} />
+      ) : loading ? (
+        <ScreenSkeleton />
       ) : !data || ![data.influencers, data.bridges, data.communities].some((items) => items?.length > 0) ? (
-        <div className="space-y-3">
-          <GlassCard className="p-12 text-center">
-            <Network className="w-8 h-8 text-gray-500 mx-auto mb-2" />
-            <h2 className="text-lg font-semibold text-gray-200">Graph intelligence returned no influencers, bridges, or communities.</h2>
-            {data?.message && <p className="text-gray-400 text-sm">{data.message}</p>}
-          </GlassCard>
-          <WhyNothingArriving />
-        </div>
+        <EmptyState>{data?.message || 'Graph intelligence returned no influencers, bridges, or communities.'}</EmptyState>
       ) : (
         <>
           {/* Row of Max 4 KPI Cards */}

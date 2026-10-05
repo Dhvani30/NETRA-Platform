@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { pingBackend } from './apiHealth';
 
 const envMs = (name, fallback) => Math.max(0, Number(import.meta.env[name] || fallback) * 1000);
 export const REFRESH_INTERVALS = Object.freeze({
-  events: envMs('VITE_REFRESH_EVENTS_SECONDS', 10), health: envMs('VITE_REFRESH_HEALTH_SECONDS', 15),
+  events: envMs('VITE_REFRESH_EVENTS_SECONDS', 10), health: envMs('VITE_REFRESH_HEALTH_SECONDS', 10),
   summary: envMs('VITE_REFRESH_SUMMARY_SECONDS', 30), analytics: envMs('VITE_REFRESH_ANALYTICS_SECONDS', 120),
   manual: 0,
 });
@@ -12,11 +13,12 @@ const jitter = ms => Math.round(ms * (0.85 + Math.random() * 0.3));
 /** A safe polling primitive: no overlap, no background polling, and no stale writes. */
 export function useAutoRefresh(fetcher, { interval = REFRESH_INTERVALS.analytics, key, enabled = true, manual = false, onData } = {}) {
   const [state, setState] = useState({ loading: false, refreshing: false, error: null, failures: 0, updatedAt: null, paused: false });
-  const controller = useRef(null); const timer = useRef(null); const generation = useRef(0); const fetcherRef = useRef(fetcher); const onDataRef = useRef(onData);
+  const controller = useRef(null); const timer = useRef(null); const generation = useRef(0); const fetcherRef = useRef(fetcher); const onDataRef = useRef(onData); const failures = useRef(0);
   fetcherRef.current = fetcher; onDataRef.current = onData;
   const clear = useCallback(() => { if (timer.current) clearTimeout(timer.current); timer.current = null; }, []);
   const run = useCallback(async ({ force = false } = {}) => {
     if (!enabled || (!force && (manual || document.hidden))) return;
+    if (!force && failures.current > 0 && !(await pingBackend())) return;
     clear(); controller.current?.abort(); const token = ++generation.current;
     setState(prev => ({ ...prev, refreshing: prev.updatedAt !== null, loading: prev.updatedAt === null, error: null }));
     const requestKey = key || String(fetcherRef.current);
@@ -26,9 +28,11 @@ export function useAutoRefresh(fetcher, { interval = REFRESH_INTERVALS.analytics
       const data = await task;
       if (token !== generation.current) return;
       onDataRef.current?.(data);
+      failures.current = 0;
       setState(prev => ({ ...prev, loading: false, refreshing: false, error: null, failures: 0, updatedAt: new Date(), paused: false }));
     } catch (error) {
       if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED' || token !== generation.current) return;
+      failures.current += 1;
       setState(prev => ({ ...prev, loading: false, refreshing: false, error, failures: prev.failures + 1 }));
     }
   }, [clear, enabled, key, manual]);
