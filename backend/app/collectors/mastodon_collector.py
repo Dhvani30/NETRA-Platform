@@ -31,7 +31,7 @@ def _instances():
     return [value for value in values if re.fullmatch(r"[a-z0-9.-]+",value)]
 
 def ingest_mastodon(target_db=None, client=None) -> dict:
-    db=target_db if target_db is not None else MongoClient(get_clean_env("MONGO_URI","mongodb+srv://admin:admin123@cluster0.joyab6x.mongodb.net/NETRA?retryWrites=true&w=majority&authSource=admin"))[get_clean_env("DB_NAME","social_intel")]; own=client is None; client=client or httpx.Client()
+    db=target_db if target_db is not None else MongoClient(get_clean_env("MONGO_URI","mongodb://localhost:27017"))[get_clean_env("DB_NAME","social_intel")]; own=client is None; client=client or httpx.Client()
     if not is_source_enabled("mastodon") and own:
         set_connector_status(db, "mastodon", "DISABLED", mode="DISABLED", message="Not enabled in this build.", reason="not_enabled_in_this_build")
         return {"count": 0, "status": "DISABLED", "reason": "not_enabled_in_this_build", "message": "Not enabled in this build."}

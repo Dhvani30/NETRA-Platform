@@ -22,7 +22,7 @@ load_dotenv(dotenv_path=ROOT_DIR / ".env")
 
 # --- Configuration (Read from Environment Variables) ---
 # NOTE: Ensure your .env points to your MongoDB Atlas cluster where your private scraper writes data.
-MONGO_URI = get_clean_env("MONGO_URI", "mongodb+srv://admin:admin123@cluster0.joyab6x.mongodb.net/NETRA?retryWrites=true&w=majority&authSource=admin")
+MONGO_URI = get_clean_env("MONGO_URI", "mongodb://localhost:27017")
 DB_NAME = os.getenv("DB_NAME", "NETRA")
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "raw_posts")
 
@@ -66,7 +66,7 @@ def check_real_data():
 def main():
     print("🚀 STARTING NETRA AUTOMATED PIPELINE (READ-ONLY MODE) 🚀")
     print("="*60)
-    print(f" MongoDB URI: {MONGO_URI[:45]}... (Atlas Cloud)")
+    print(" MongoDB URI: configured")
     print(f" Database: {DB_NAME}")
     print(f" Collection: {COLLECTION_NAME}")
     if NEO4J_URI:

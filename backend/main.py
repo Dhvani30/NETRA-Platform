@@ -49,11 +49,11 @@ load_dotenv()
 
 def _cors_origins() -> list[str]:
     """Return configured browser origins or local and production defaults."""
-    default_origins = "http://localhost:5173,http://127.0.0.1:5173,https://netra-platform.vercel.app"
-    configured = os.getenv("CORS_ALLOWED_ORIGINS") or default_origins
+    configured = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,https://netra-platform.vercel.app")
+
     return [origin.strip().rstrip("/") for origin in configured.split(",") if origin.strip()]
 # --- Configuration (Reads from .env, falls back to safe defaults) ---
-MONGO_URI = get_clean_env("MONGO_URI", "mongodb+srv://admin:admin123@cluster0.joyab6x.mongodb.net/NETRA?retryWrites=true&w=majority&authSource=admin")
+MONGO_URI = get_clean_env("MONGO_URI", "mongodb://localhost:27017")
 MONGO_DB_NAME = os.getenv("DB_NAME", "NETRA")
 MONGO_COLLECTION = os.getenv("COLLECTION_NAME", "raw_posts")
 

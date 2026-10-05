@@ -11,7 +11,7 @@ from app.sentiment import rebuild_rollups, rebuild_threads
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / ".env")
-MONGO_URI = get_clean_env("MONGO_URI", "mongodb+srv://admin:admin123@cluster0.joyab6x.mongodb.net/NETRA?retryWrites=true&w=majority&authSource=admin")
+MONGO_URI = get_clean_env("MONGO_URI", "mongodb://localhost:27017")
 DB_NAME = os.getenv("DB_NAME", "social_intel")
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "raw_posts")
 

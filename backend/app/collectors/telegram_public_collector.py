@@ -65,7 +65,7 @@ async def _collect(db, api_id: int, api_hash: str, session_value: str):
 
 
 def ingest_telegram_public(target_db=None):
-    db = target_db if target_db is not None else MongoClient(get_clean_env("MONGO_URI", "mongodb+srv://admin:admin123@cluster0.joyab6x.mongodb.net/NETRA?retryWrites=true&w=majority&authSource=admin"))[get_clean_env("DB_NAME", "social_intel")]
+    db = target_db if target_db is not None else MongoClient(get_clean_env("MONGO_URI", "mongodb://localhost:27017"))[get_clean_env("DB_NAME", "social_intel")]
     if not is_source_enabled("telegram") or get_clean_env("TELEGRAM_PUBLIC_ENABLED", "false").lower() not in {"1", "true", "yes"}:
         set_connector_status(db, "telegram_public", "DISABLED", mode="LIVE", reason="not_enabled_in_this_build")
         return {"count": 0, "status": "DISABLED", "reason": "not_enabled_in_this_build"}

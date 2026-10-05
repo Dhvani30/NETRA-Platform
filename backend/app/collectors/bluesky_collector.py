@@ -34,7 +34,7 @@ def map_post(post: dict, topic_id: str) -> dict:
             "source_mode":"LIVE", "dataset":None, "source_file":None, "processed":False}
 
 def ingest_bluesky(target_db=None, client=None) -> dict:
-    db = target_db if target_db is not None else MongoClient(get_clean_env("MONGO_URI","mongodb+srv://admin:admin123@cluster0.joyab6x.mongodb.net/NETRA?retryWrites=true&w=majority&authSource=admin"))[get_clean_env("DB_NAME","social_intel")]
+    db = target_db if target_db is not None else MongoClient(get_clean_env("MONGO_URI","mongodb://localhost:27017"))[get_clean_env("DB_NAME","social_intel")]
     if not is_source_enabled("bluesky") and client is None:
         set_connector_status(db, "bluesky", "DISABLED", mode="DISABLED", message="Not enabled in this build.", reason="not_enabled_in_this_build")
         return {"count": 0, "status": "DISABLED", "reason": "not_enabled_in_this_build", "message": "Not enabled in this build."}
