@@ -109,7 +109,7 @@ function App() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [realOnly, setRealOnly] = useState(() => new URLSearchParams(window.location.search).get('real_only') !== '0');
   const onLiveEvent = useCallback(() => { setRefreshKey(key => key + 1); }, []);
-  const { connected: backendConnected } = useLiveStream(onLiveEvent);
+  const { connected: backendConnected, state: streamState } = useLiveStream(onLiveEvent);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -321,7 +321,7 @@ function App() {
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
               Demo Checklist
             </button>
-            <LiveStatusStrip origin={dataOrigin} connected={backendConnected} realOnly={realOnly} onToggle={setRealOnly} onSources={() => setActiveScreen('sources')} />
+            <LiveStatusStrip summary={liveSummary} streamState={streamState} connected={backendConnected} realOnly={realOnly} onToggle={setRealOnly} onSources={() => setActiveScreen('sources')} />
           </div>
         </header>
 

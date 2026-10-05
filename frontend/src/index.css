@@ -378,7 +378,8 @@ body {
   border: 1px solid rgba(14, 165, 233, 0.40) !important;
 }
 
-.pill--synth {
+.pill--synth,
+.pill--idle {
   color: #94A3B8 !important;
   background: rgba(148, 163, 184, 0.12) !important;
   border: 1px solid rgba(148, 163, 184, 0.25) !important;
