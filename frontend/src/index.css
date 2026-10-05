@@ -25,6 +25,16 @@
   --status-amber: #C09060;
   --status-green: #70A888;
   --status-blue: #7090CC;
+  --badge-live-fg: #6EE7B7;
+  --badge-live-bg: rgba(16, 185, 129, 0.16);
+  --badge-synth-fg: #CBD5E1;
+  --badge-synth-bg: rgba(148, 163, 184, 0.16);
+  --badge-idle-fg: #CBD5E1;
+  --badge-idle-bg: rgba(148, 163, 184, 0.16);
+  --badge-error-fg: #FECACA;
+  --badge-error-bg: rgba(192, 112, 112, 0.22);
+  --badge-disabled-fg: #94A3B8;
+  --badge-disabled-bg: rgba(91, 95, 122, 0.35);
 
   color-scheme: dark;
 }
@@ -386,12 +396,6 @@ body {
   box-shadow: 0 0 10px rgba(245, 158, 11, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
 }
 
-.pill--live {
-  color: #6EE7B7 !important;
-  background: rgba(16, 185, 129, 0.16) !important;
-  border: 1px solid rgba(16, 185, 129, 0.40) !important;
-}
-
 .pill--import {
   color: #7DD3FC !important;
   background: rgba(14, 165, 233, 0.16) !important;
@@ -399,10 +403,42 @@ body {
 }
 
 .pill--synth,
-.pill--idle {
-  color: #94A3B8 !important;
-  background: rgba(148, 163, 184, 0.12) !important;
-  border: 1px solid rgba(148, 163, 184, 0.25) !important;
+.pill--idle,
+.ds-badge--synth,
+.ds-badge--idle {
+  color: var(--badge-idle-fg) !important;
+  background: var(--badge-idle-bg) !important;
+  border: 1px solid rgba(148, 163, 184, 0.35) !important;
+}
+
+.ds-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.ds-badge--live,
+.pill--live {
+  color: var(--badge-live-fg) !important;
+  background: var(--badge-live-bg) !important;
+  border: 1px solid rgba(16, 185, 129, 0.4) !important;
+}
+
+.ds-badge--error {
+  color: var(--badge-error-fg) !important;
+  background: var(--badge-error-bg) !important;
+  border: 1px solid rgba(192, 112, 112, 0.5) !important;
+}
+
+.ds-badge--disabled {
+  color: var(--badge-disabled-fg) !important;
+  background: var(--badge-disabled-bg) !important;
+  border: 1px solid rgba(148, 163, 184, 0.3) !important;
 }
 
 /* Data Table */

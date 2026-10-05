@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { AlertTriangle, TrendingUp, Globe, Bell, RefreshCw, Video } from 'lucide-react';
-import { Badge, Button, GlassCard, KpiCard, DataTable } from './ui/primitives';
+import { Badge, Button, GlassCard, KpiCard, DataTable, StatusBadge } from './ui/primitives';
 import { WhyNothingArriving } from './ui/dataState';
 
 import { API_URL } from '../config';
@@ -59,9 +59,9 @@ export default function AlertsView({ refreshKey = 0 }) {
       header: 'Severity',
       accessorKey: 'severity',
       cell: (row) => (
-        <Badge variant={SEVERITY_STYLES[row.severity]?.tone || 'neutral'}>
+        <StatusBadge status={row.severity === 'CRITICAL' ? 'ERROR' : 'IDLE'}>
           {row.severity}
-        </Badge>
+        </StatusBadge>
       )
     },
     {

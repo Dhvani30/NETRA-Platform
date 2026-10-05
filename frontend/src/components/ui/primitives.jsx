@@ -262,4 +262,12 @@ function Badge({ variant = 'neutral', className = '', ...props }) {
   return <span className={`ds-badge ds-badge--${variant} ${className}`.trim()} {...props} />
 }
 
-export { Button, Input, Card, GlassCard, KpiCard, PillTabs, FloatingStatCard, ChartCard, DataTable, Badge }
+const STATUS_BADGES = { LIVE: 'live', SYNTH: 'synth', IDLE: 'idle', ERROR: 'error', DISABLED: 'disabled' };
+
+function StatusBadge({ status = 'IDLE', className = '', children, ...props }) {
+  const key = String(status || 'IDLE').toUpperCase();
+  const variant = STATUS_BADGES[key] || 'idle';
+  return <Badge variant={variant} className={className} {...props}>{children || key}</Badge>;
+}
+
+export { Button, Input, Card, GlassCard, KpiCard, PillTabs, FloatingStatCard, ChartCard, DataTable, Badge, StatusBadge }

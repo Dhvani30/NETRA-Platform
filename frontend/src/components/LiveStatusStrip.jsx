@@ -4,6 +4,7 @@ import { API_URL } from '../config';
 import { useAutoRefresh, REFRESH_INTERVALS } from '../lib/refresh';
 import { MODE_LEGEND } from '../lib/sourceModes';
 import { LastUpdated } from './ui/dataState';
+import { StatusBadge } from './ui/primitives';
 
 const display = value => value ? String(value).replaceAll('_', ' ') : 'unknown';
 const isDisabled = source => source?.mode === 'DISABLED' || source?.status === 'DISABLED' || source?.reason === 'not_enabled_in_this_build';
@@ -58,17 +59,16 @@ export default function LiveStatusStrip({ summary, streamState = 'reconnecting',
   const transport = streamLabel(streamState, connected);
 
   return <div className="netra-topbar__sources flex flex-wrap items-center gap-2 text-sm justify-end">
-    <span className={`pill ${anyFresh ? 'pill--live animate-pulse' : 'pill--idle'}`} title={anyFresh ? 'At least one enabled source is live and fresh' : 'No enabled source is live-fresh'}>
-      {anyFresh ? 'LIVE' : 'idle'}
-      {!anyFresh && <span className="font-mono"> · {ageFromSeconds(newestAge)}</span>}
-    </span>
+    <StatusBadge status={anyFresh ? 'LIVE' : 'IDLE'} className={anyFresh ? 'animate-pulse' : ''} title={anyFresh ? 'At least one enabled source is live and fresh' : 'No enabled source is live-fresh'}>
+      {anyFresh ? 'LIVE' : `IDLE · ${ageFromSeconds(newestAge)}`}
+    </StatusBadge>
     <span className="text-slate-200" title="SSE transport">Stream: {transport}</span>
     {entries.length === 0 && <span className="text-sm text-slate-400">Waiting for source status from the API.</span>}
     {enabled.map(([name, source]) => {
       const fresh = Boolean(source.live_fresh);
       const countdown = nextRun(source);
       return <button key={name} type="button" onClick={onSources} title={`${display(source.status)} · newest ${age(source.last_item_at)}`} className={`rounded border px-2 py-1 text-left text-sm ${fresh ? 'border-emerald-500/50 text-emerald-200' : 'border-slate-700 text-slate-400'}`}>
-        <span className="capitalize font-semibold">{display(name)}</span> <span className={`pill ${source.mode === 'LIVE' ? 'pill--live' : 'pill--idle'}`}>{source.mode || 'unknown'}</span><br />
+        <span className="capitalize font-semibold">{display(name)}</span> <StatusBadge status={source.mode === 'LIVE' ? 'LIVE' : source.mode === 'DISABLED' ? 'DISABLED' : source.status === 'ERROR' ? 'ERROR' : 'IDLE'}>{source.mode || 'unknown'}</StatusBadge><br />
         <span>{display(source.status)} · {age(source.last_item_at)} · {source.items_last_hour ?? 0}/h{countdown ? ` · ${countdown}` : ''}</span>
         <span className={`float-right ml-2 ${fresh ? 'text-emerald-400' : 'text-slate-600'}`}><Sparkline points={sparklinePoints(summary, name, source)} /></span>
       </button>;

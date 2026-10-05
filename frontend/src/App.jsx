@@ -29,7 +29,7 @@ import { useLiveStream } from './hooks/useLiveStream';
 import WatchlistView from './components/WatchlistView';
 import CoverageView from './components/CoverageView';
 
-import { Badge, Button, Input, PillTabs } from './components/ui/primitives';
+import { Button, ChartCard, DataTable, Input, StatusBadge } from './components/ui/primitives';
 import { ErrorState } from './components/ui/dataState';
 import { API_URL } from './config';
 
@@ -404,10 +404,10 @@ function App() {
                       {dataPhase === 'ready' && (summaryData?.total_posts ?? dataOrigin?.total ?? 0) === 0 && <span className="text-sm text-slate-300">No posts collected yet.</span>}
                       {dataPhase === 'ready' && (summaryData?.total_posts ?? dataOrigin?.total ?? 0) > 0 && (
                         <>
-                          <span className="pill pill--live">LIVE: <strong>{dataOrigin?.live ?? 0}</strong></span>
-                          <span className="pill pill--live-third-party" title="Collected live through a disclosed third-party provider">LIVE_THIRD_PARTY: <strong>{dataOrigin?.live_third_party ?? 0}</strong></span>
-                          <span className="pill pill--import">IMPORT: <strong>{dataOrigin?.import ?? 0}</strong></span>
-                          <span className="pill pill--synth">SYNTH: <strong>{dataOrigin?.synth ?? 0}</strong></span>
+                          <StatusBadge status="LIVE">LIVE: {dataOrigin?.live ?? 0}</StatusBadge>
+                          <StatusBadge status="IDLE" title="Collected live through a disclosed third-party provider">LIVE_THIRD_PARTY: {dataOrigin?.live_third_party ?? 0}</StatusBadge>
+                          <StatusBadge status="IDLE">IMPORT: {dataOrigin?.import ?? 0}</StatusBadge>
+                          <StatusBadge status="SYNTH">SYNTH: {dataOrigin?.synth ?? 0}</StatusBadge>
                         </>
                       )}
                     </div>
@@ -505,15 +505,7 @@ function App() {
                 </div>
 
                 {/* Main Visualization: Chart Card with Dynamic Hourly Volume Timeseries */}
-                <div className="glass glass-lg p-5 relative">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-sm font-light text-white">
-                      Narrative <span className="text-indigo-300 font-normal">Volume Timeseries (Hourly)</span>
-                    </h2>
-                    <div className="flex items-center gap-2">
-                      <span className="pill pill-active text-[11px]">Dynamic DB Telemetry</span>
-                    </div>
-                  </div>
+                <ChartCard title="Narrative volume timeseries" subtitle="Hourly counts from the analytics API">
 
                   <div className="h-[240px] w-full relative">
                     {dataPhase === 'loading' ? (
@@ -548,7 +540,7 @@ function App() {
                       </ResponsiveContainer>
                     )}
                   </div>
-                </div>
+                </ChartCard>
 
                 {/* Dynamic Tracked Narratives Table (.data-table) */}
                 <div className="glass p-5 space-y-4">
@@ -568,49 +560,16 @@ function App() {
                       No active narrative clusters found in the database.
                     </div>
                   ) : (
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>Narrative</th>
-                          <th>Posts</th>
-                          <th>Share</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {narrativeData.slice(0, 5).map((row, idx) => {
-                          const share = totalPostsCount > 0 ? Math.round((row.count / totalPostsCount) * 100) : 0;
-                          return (
-                            <tr key={idx}>
-                              <td>
-                                <div className="flex items-center gap-2.5">
-                                  <div className="w-6 h-6 rounded-full bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-[10px] font-mono text-indigo-300">
-                                    {idx + 1}
-                                  </div>
-                                  <div>
-                                    <div className="font-medium text-gray-100">{row.name}</div>
-                                  </div>
-                                </div>
-                              </td>
-                              <td><span className="font-mono text-xs text-slate-200">{row.count}</span></td>
-                              <td>
-                                <div className="w-24 bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                                  <div
-                                    className="bg-gradient-to-r from-slate-400 to-indigo-300 h-full rounded-full"
-                                    style={{ width: `${Math.min(100, share * 3)}%` }}
-                                  />
-                                </div>
-                              </td>
-                              <td>
-                                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-                                  Active ({share}%)
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                    <DataTable
+                      maxRows={5}
+                      data={narrativeData}
+                      columns={[
+                        { header: 'Narrative', cell: (row) => row.name },
+                        { header: 'Posts', cell: (row) => row.count },
+                        { header: 'Share', cell: (row) => `${totalPostsCount > 0 ? Math.round((row.count / totalPostsCount) * 100) : 0}%` },
+                        { header: 'Status', cell: () => <StatusBadge status="IDLE">Reported</StatusBadge> },
+                      ]}
+                    />
                   )}
                 </div>
               </div>
