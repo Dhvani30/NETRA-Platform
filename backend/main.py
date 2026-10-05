@@ -46,6 +46,14 @@ install_secret_redaction()
 # Load environment variables from .env file
 load_dotenv()
 
+
+def _cors_origins() -> list[str]:
+    """Return explicitly configured browser origins plus local development defaults."""
+    configured = os.getenv("CORS_ALLOWED_ORIGINS", "")
+    origins = [origin.strip().rstrip("/") for origin in configured.split(",") if origin.strip()]
+    return origins or ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+
 # --- Configuration (Reads from .env, falls back to safe defaults) ---
 MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://admin:admin123@cluster0.joyab6x.mongodb.net/NETRA?retryWrites=true&w=majority&authSource=admin")
 MONGO_DB_NAME = os.getenv("DB_NAME", "NETRA")
@@ -62,7 +70,8 @@ from app.graph_db import close_pool, get_connection
 app = FastAPI(title="NETRA Intelligence Platform", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=_cors_origins(),
+    allow_origin_regex=os.getenv("CORS_ALLOWED_ORIGIN_REGEX") or None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
