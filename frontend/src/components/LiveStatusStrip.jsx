@@ -40,7 +40,7 @@ export default function LiveStatusStrip({ summary, streamState = 'reconnecting',
   const hiddenSynthetic = realOnly ? (modes.SYNTH || 0) : 0;
   const transport = streamLabel(streamState, connected);
 
-  return <div className="flex flex-wrap items-center gap-2 text-sm max-w-[920px] justify-end">
+  return <div className="netra-topbar__sources flex flex-wrap items-center gap-2 text-sm justify-end">
     <span className={`pill ${anyFresh ? 'pill--live animate-pulse' : 'pill--idle'}`} title={anyFresh ? 'At least one enabled source is live and fresh' : 'No enabled source is live-fresh'}>
       {anyFresh ? 'LIVE' : 'idle'}
       {!anyFresh && <span className="font-mono"> · {ageFromSeconds(newestAge)}</span>}
