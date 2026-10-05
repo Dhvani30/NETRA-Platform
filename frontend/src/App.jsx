@@ -35,6 +35,35 @@ import { API_URL } from './config';
 
 const API_UNREACHABLE = "Can't reach the NETRA API (http://127.0.0.1:8000). Start the backend and retry.";
 
+const SCREEN_PATHS = {
+  live_feed: '/dashboard/live',
+  analytics: '/dashboard/analytics',
+  alerts: '/dashboard/alerts',
+  youtube: '/dashboard/youtube',
+  meta: '/dashboard/meta',
+  sources: '/dashboard/sources',
+  watchlist: '/dashboard/watchlist',
+  coverage: '/dashboard/coverage',
+  demographics: '/dashboard/demographics',
+  trends: '/dashboard/trends',
+  sentiment_timeline: '/dashboard/sentiment',
+  investigate: '/dashboard/investigate',
+  mutation: '/dashboard/mutation',
+  correlation: '/dashboard/correlation',
+  graph: '/dashboard/graph',
+  network_intel: '/dashboard/network',
+};
+
+function isDashboardPath(pathname) {
+  return pathname === '/dashboard' || pathname.startsWith('/dashboard/');
+}
+
+function screenFromPath(pathname) {
+  if (!isDashboardPath(pathname) || pathname === '/dashboard' || pathname === '/dashboard/') return 'live_feed';
+  const match = Object.entries(SCREEN_PATHS).find(([, path]) => path === pathname);
+  return match ? match[0] : 'live_feed';
+}
+
 const NAV_GROUPS = [
   {
     id: 'MONITOR',
@@ -77,12 +106,14 @@ const NAV_GROUPS = [
 
 function App() {
   const [currentPath, setCurrentPath] = useState(
-    typeof window !== 'undefined' && window.location.pathname.startsWith('/dashboard')
+    typeof window !== 'undefined' && isDashboardPath(window.location.pathname)
       ? '/dashboard'
       : '/'
   );
 
-  const [activeScreen, setActiveScreen] = useState('live_feed');
+  const [activeScreen, setActiveScreen] = useState(() => (
+    typeof window === 'undefined' ? 'live_feed' : screenFromPath(window.location.pathname)
+  ));
   const [selectedProvenancePost, setSelectedProvenancePost] = useState(null);
   const [showDemoDrawer, setShowDemoDrawer] = useState(false);
   const [openGroups, setOpenGroups] = useState({
@@ -119,17 +150,30 @@ function App() {
 
   useEffect(() => {
     const handlePopState = () => {
-      setCurrentPath(window.location.pathname.startsWith('/dashboard') ? '/dashboard' : '/');
+      const path = window.location.pathname;
+      if (!isDashboardPath(path)) {
+        setCurrentPath('/');
+        return;
+      }
+      setCurrentPath('/dashboard');
+      setActiveScreen(screenFromPath(path));
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const navigateToDashboard = () => {
-    if (typeof window !== 'undefined') {
-      window.history.pushState({}, '', '/dashboard');
+  const openScreen = (id) => {
+    setActiveScreen(id);
+    if (id !== 'investigate') setInvestigationData(null);
+    const path = SCREEN_PATHS[id] || SCREEN_PATHS.live_feed;
+    if (typeof window !== 'undefined' && window.location.pathname !== path) {
+      window.history.pushState({}, '', path + window.location.search);
     }
     setCurrentPath('/dashboard');
+  };
+
+  const navigateToDashboard = () => {
+    openScreen('live_feed');
   };
 
   const navigateToLanding = () => {
@@ -180,7 +224,7 @@ function App() {
       try {
         const searchRes = await axios.get(`${API_URL}/search?q=${encodeURIComponent(searchQuery)}`);
         setInvestigationData(searchRes.data);
-        setActiveScreen('investigate');
+        openScreen('investigate');
       } catch (error) {
         console.error('Error searching:', error);
       } finally {
@@ -190,9 +234,8 @@ function App() {
   };
 
   const handleBackToDashboard = () => {
-    setInvestigationData(null);
     setSearchQuery('');
-    setActiveScreen('analytics');
+    openScreen('analytics');
   };
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -256,10 +299,7 @@ function App() {
                           <button
                             key={item.id}
                             className={`netra-sidebar__item ${isActive ? 'is-active' : ''}`}
-                            onClick={() => {
-                              setActiveScreen(item.id);
-                              if (item.id !== 'investigate') setInvestigationData(null);
-                            }}
+                            onClick={() => openScreen(item.id)}
                           >
                             <span>{item.label}</span>
                           </button>
@@ -321,7 +361,7 @@ function App() {
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
               Demo Checklist
             </button>
-            <LiveStatusStrip summary={liveSummary} streamState={streamState} connected={backendConnected} realOnly={realOnly} onToggle={setRealOnly} onSources={() => setActiveScreen('sources')} />
+            <LiveStatusStrip summary={liveSummary} streamState={streamState} connected={backendConnected} realOnly={realOnly} onToggle={setRealOnly} onSources={() => openScreen('sources')} />
           </div>
         </header>
 
@@ -432,7 +472,7 @@ function App() {
                       </div>
                     </div>
                     <button
-                      onClick={() => setActiveScreen('coverage')}
+                      onClick={() => openScreen('coverage')}
                       className="text-xs text-indigo-300 hover:text-indigo-200 flex items-center gap-1 font-medium link-underline pt-2"
                     >
                       View Coverage Matrix <ArrowRight className="w-3.5 h-3.5" />
@@ -615,7 +655,7 @@ function App() {
       <DemoChecklistDrawer
         isOpen={showDemoDrawer}
         onClose={() => setShowDemoDrawer(false)}
-        onNavigate={(screen) => setActiveScreen(screen)}
+        onNavigate={(screen) => openScreen(screen)}
       />
     </div>
   );
