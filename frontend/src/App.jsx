@@ -193,7 +193,7 @@ function App() {
         axios.get(`${API_URL}/analytics/data-origin`, { params: sourceFilter }),
         axios.get(`${API_URL}/analytics/sentiment`, { params: sourceFilter }),
         axios.get(`${API_URL}/analytics/narratives`, { params: sourceFilter }),
-        axios.get(`${API_URL}/graph/data`, { params: sourceFilter }),
+        axios.get(`${API_URL}/graph/data`, { params: sourceFilter }).catch(() => ({ data: { nodes: [], links: [] } })),
         axios.get(`${API_URL}/messages?limit=20`, { params: sourceFilter }),
         axios.get(`${API_URL}/health/sources`).catch(() => ({ data: {} })),
         axios.get(`${API_URL}/live/summary`).catch(() => ({ data: null }))
