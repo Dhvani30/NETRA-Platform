@@ -30,7 +30,10 @@ import WatchlistView from './components/WatchlistView';
 import CoverageView from './components/CoverageView';
 
 import { Badge, Button, Input, PillTabs } from './components/ui/primitives';
+import { ErrorState } from './components/ui/dataState';
 import { API_URL } from './config';
+
+const API_UNREACHABLE = "Can't reach the NETRA API (http://127.0.0.1:8000). Start the backend and retry.";
 
 const NAV_GROUPS = [
   {
@@ -97,7 +100,9 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [sourcesStatus, setSourcesStatus] = useState({});
   const [liveSummary, setLiveSummary] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
   const [investigationData, setInvestigationData] = useState(null);
@@ -134,8 +139,8 @@ function App() {
     setCurrentPath('/');
   };
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = useCallback(async ({ background = false } = {}) => {
+    if (!background) setLoading(true);
     try {
       const sourceFilter = realOnly ? { real_only: 1 } : {};
       const [summaryRes, timeseriesRes, originRes, sentimentRes, narrativeRes, graphRes, messagesRes, sourcesRes, liveSumRes] = await Promise.all([
@@ -159,12 +164,15 @@ function App() {
       setSourcesStatus(sourcesRes.data || {});
       setLiveSummary(liveSumRes.data || null);
       setLastUpdated(new Date());
+      setLoadError(null);
+      setHasLoaded(true);
     } catch (error) {
       console.error('Error fetching data:', error);
+      setLoadError(API_UNREACHABLE);
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
-  };
+  }, [realOnly]);
 
   const handleSearch = async (e) => {
     if (e.key === 'Enter' && searchQuery.trim()) {
@@ -187,7 +195,13 @@ function App() {
     setActiveScreen('analytics');
   };
 
-  useEffect(() => { fetchData(); }, [realOnly]);
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    if (!loadError) return undefined;
+    const timer = setInterval(() => { fetchData({ background: true }); }, 10000);
+    return () => clearInterval(timer);
+  }, [loadError, fetchData]);
 
   const toggleGroup = (groupId) => {
     setOpenGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }));
@@ -199,6 +213,7 @@ function App() {
   }
 
   const totalPostsCount = summaryData?.total_posts ?? 0;
+  const dataPhase = !hasLoaded && loading ? 'loading' : (!hasLoaded && loadError ? 'error' : 'ready');
 
   // If at '/dashboard', render Dashboard Shell
   return (
@@ -306,6 +321,11 @@ function App() {
         {/* Content Area */}
         <main className="netra-content">
           <div className="netra-content__inner">
+            {loadError && (
+              <div className="mb-4">
+                <ErrorState error={{ message: loadError }} onRetry={() => fetchData()} />
+              </div>
+            )}
             {/* SCREEN 1: ANALYTICS */}
             {activeScreen === 'analytics' && (
               <div className="space-y-6">
@@ -313,7 +333,7 @@ function App() {
                   <h1 className="text-xl font-light text-white tracking-wide">
                     Analytics <span className="text-indigo-300 font-normal">Dashboard</span>
                   </h1>
-                  <Button variant="secondary" onClick={fetchData} loading={loading}>
+                  <Button variant="secondary" onClick={() => fetchData()} loading={loading}>
                     <RefreshCw className={loading ? 'animate-spin' : ''} /> Refresh Data
                   </Button>
                 </div>
@@ -326,16 +346,23 @@ function App() {
                       <span className="label-xs text-slate-400">TOTAL INGESTION (BY MODE)</span>
                       <div className="flex items-baseline justify-between mt-1">
                         <span className="kpi-value">
-                          {loading ? '...' : (summaryData?.total_posts ?? dataOrigin?.total ?? 0).toLocaleString()}
+                          {dataPhase === 'loading' ? '…' : dataPhase === 'error' ? '—' : (summaryData?.total_posts ?? dataOrigin?.total ?? 0).toLocaleString()}
                         </span>
                         <span className="text-[10px] font-mono text-emerald-400">authoritative</span>
                       </div>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-1">
-                      <span className="pill text-[9px] pill--live">LIVE: <strong>{dataOrigin?.live ?? 0}</strong></span>
-                      <span className="pill text-[9px] pill--live-third-party" title="Collected live through a disclosed third-party provider">LIVE_THIRD_PARTY: <strong>{dataOrigin?.live_third_party ?? 0}</strong></span>
-                      <span className="pill text-[9px] pill--import">IMPORT: <strong>{dataOrigin?.import ?? 0}</strong></span>
-                      <span className="pill text-[9px] pill--synth">SYNTH: <strong>{dataOrigin?.synth ?? 0}</strong></span>
+                      {dataPhase === 'loading' && <span className="text-sm text-slate-300">Loading ingestion counts.</span>}
+                      {dataPhase === 'error' && <span className="text-sm text-amber-200">Ingestion counts are unavailable until the API responds.</span>}
+                      {dataPhase === 'ready' && (summaryData?.total_posts ?? dataOrigin?.total ?? 0) === 0 && <span className="text-sm text-slate-300">No posts collected yet.</span>}
+                      {dataPhase === 'ready' && (summaryData?.total_posts ?? dataOrigin?.total ?? 0) > 0 && (
+                        <>
+                          <span className="pill pill--live">LIVE: <strong>{dataOrigin?.live ?? 0}</strong></span>
+                          <span className="pill pill--live-third-party" title="Collected live through a disclosed third-party provider">LIVE_THIRD_PARTY: <strong>{dataOrigin?.live_third_party ?? 0}</strong></span>
+                          <span className="pill pill--import">IMPORT: <strong>{dataOrigin?.import ?? 0}</strong></span>
+                          <span className="pill pill--synth">SYNTH: <strong>{dataOrigin?.synth ?? 0}</strong></span>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -345,13 +372,15 @@ function App() {
                       <span className="label-xs text-slate-400">DATA FRESHNESS</span>
                       <div className="flex items-baseline justify-between mt-1">
                         <span className="kpi-value text-emerald-400">
-                          {liveSummary?.newest_item_age_seconds != null ? `${liveSummary.newest_item_age_seconds}s` : 'Active'}
+                          {dataPhase === 'loading' ? '…' : dataPhase === 'error' ? '—' : liveSummary?.newest_item_age_seconds != null ? `${liveSummary.newest_item_age_seconds}s` : 'No items'}
                         </span>
                         <span className="text-[10px] font-mono text-slate-400">newest item</span>
                       </div>
                     </div>
-                    <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] font-mono">
-                      {['telegram', 'youtube', 'facebook', 'instagram'].map(p => {
+                    <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-sm font-mono">
+                      {dataPhase === 'loading' && <span className="col-span-2 text-slate-300">Loading source freshness.</span>}
+                      {dataPhase === 'error' && <span className="col-span-2 text-amber-200">Source freshness is unavailable until the API responds.</span>}
+                      {dataPhase === 'ready' && ['telegram', 'youtube', 'facebook', 'instagram'].map(p => {
                         const src = sourcesStatus[p] || {};
                         const isFresh = src.status === 'LIVE' || (src.last_success && (Date.now() - new Date(src.last_success).getTime()) < 3600000);
                         const label = src.last_success
@@ -364,6 +393,9 @@ function App() {
                           </div>
                         );
                       })}
+                      {dataPhase === 'ready' && !['telegram', 'youtube', 'facebook', 'instagram'].some(p => sourcesStatus[p]?.last_success || sourcesStatus[p]?.status === 'LIVE') && (
+                        <span className="col-span-2 text-sm text-slate-300">No fresh items reported for the active sources.</span>
+                      )}
                     </div>
                   </div>
 
@@ -373,7 +405,10 @@ function App() {
                       <span className="label-xs text-slate-400">COVERAGE MINI-MATRIX</span>
                       <div className="mt-2 space-y-1.5">
                         <div className="flex flex-wrap gap-1">
-                          {['telegram', 'youtube', 'facebook', 'instagram', 'x', 'reddit'].map(p => {
+                          {dataPhase === 'loading' && <span className="text-sm text-slate-300">Loading coverage.</span>}
+                          {dataPhase === 'error' && <span className="text-sm text-amber-200">Coverage is unavailable until the API responds.</span>}
+                          {dataPhase === 'ready' && Object.keys(sourcesStatus).length === 0 && <span className="text-sm text-slate-300">No source status reported.</span>}
+                          {dataPhase === 'ready' && ['telegram', 'youtube', 'facebook', 'instagram', 'x', 'reddit'].map(p => {
                             const src = sourcesStatus[p] || {};
                             const isNotEnabled = src.status === 'Not enabled in this build' || src.mode === 'DISABLED';
                             const isLive = !isNotEnabled && src.status === 'LIVE';
@@ -403,14 +438,21 @@ function App() {
                       <span className="label-xs text-slate-400">INTELLIGENCE SIGNALS</span>
                       <div className="flex items-baseline justify-between mt-1">
                         <span className="kpi-value">
-                          {loading ? '...' : (summaryData?.active_narratives ?? 0)}
+                          {dataPhase === 'loading' ? '…' : dataPhase === 'error' ? '—' : (summaryData?.active_narratives ?? 0)}
                         </span>
                         <span className="text-[10px] font-mono text-indigo-300">narratives</span>
                       </div>
                     </div>
-                    <div className="mt-3 flex items-center justify-between text-xs font-mono text-slate-300 pt-1 border-t border-white/5">
-                      <span>Alerts: <strong className="text-amber-400">{summaryData?.active_alerts ?? 0}</strong></span>
-                      <span>Sentiment: <strong className={summaryData?.avg_sentiment > 0 ? 'text-emerald-400' : 'text-slate-300'}>{summaryData?.avg_sentiment ?? '0.00'}</strong></span>
+                    <div className="mt-3 flex items-center justify-between text-sm font-mono text-slate-300 pt-1 border-t border-white/5">
+                      {dataPhase === 'loading' && <span>Loading signals.</span>}
+                      {dataPhase === 'error' && <span className="text-amber-200">Signals are unavailable until the API responds.</span>}
+                      {dataPhase === 'ready' && (summaryData?.active_narratives ?? 0) === 0 && (summaryData?.active_alerts ?? 0) === 0 && <span>No narratives or alerts in the collected data.</span>}
+                      {dataPhase === 'ready' && ((summaryData?.active_narratives ?? 0) > 0 || (summaryData?.active_alerts ?? 0) > 0) && (
+                        <>
+                          <span>Alerts: <strong className="text-amber-400">{summaryData?.active_alerts ?? 0}</strong></span>
+                          <span>Sentiment: <strong className={summaryData?.avg_sentiment > 0 ? 'text-emerald-400' : 'text-slate-300'}>{summaryData?.avg_sentiment ?? '0.00'}</strong></span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -427,9 +469,13 @@ function App() {
                   </div>
 
                   <div className="h-[240px] w-full relative">
-                    {timeseriesData.length === 0 ? (
-                      <div className="flex items-center justify-center h-full text-slate-500 text-xs font-mono">
-                        No timeseries telemetry points available in database.
+                    {dataPhase === 'loading' ? (
+                      <div className="flex items-center justify-center h-full text-slate-300 text-sm">Loading timeseries.</div>
+                    ) : dataPhase === 'error' ? (
+                      <div className="flex items-center justify-center h-full text-amber-200 text-sm text-center px-6">{loadError}</div>
+                    ) : timeseriesData.length === 0 ? (
+                      <div className="flex items-center justify-center h-full text-slate-300 text-sm">
+                        No timeseries telemetry points available in the database.
                       </div>
                     ) : (
                       <ResponsiveContainer width="100%" height="100%">
@@ -466,9 +512,13 @@ function App() {
                     <span className="label-xs">Top Active Clusters</span>
                   </div>
 
-                  {narrativeData.length === 0 ? (
-                    <div className="p-8 text-center text-slate-500 text-xs font-mono">
-                      No active narrative clusters found in database.
+                  {dataPhase === 'loading' ? (
+                    <div className="p-8 text-center text-slate-300 text-sm">Loading narrative clusters.</div>
+                  ) : dataPhase === 'error' ? (
+                    <div className="p-8 text-center text-amber-200 text-sm">{loadError}</div>
+                  ) : narrativeData.length === 0 ? (
+                    <div className="p-8 text-center text-slate-300 text-sm">
+                      No active narrative clusters found in the database.
                     </div>
                   ) : (
                     <table className="data-table">

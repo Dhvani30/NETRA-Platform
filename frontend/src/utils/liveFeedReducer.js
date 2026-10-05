@@ -4,7 +4,7 @@
 
 export const MAX_LIVE_FEED_ITEMS = 200;
 
-import { canonicalSourceMode } from '../lib/sourceModes';
+import { canonicalSourceMode } from '../lib/sourceModes.js';
 
 export function getSourceModeClass(sourceMode) {
   const mode = canonicalSourceMode(sourceMode);
