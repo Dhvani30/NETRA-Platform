@@ -26,7 +26,7 @@ export default function DemoChecklistDrawer({ isOpen, onClose, onNavigate }) {
   const groups = [
     ['Live now', entries.filter(source => source.live_fresh)],
     ['Connected, waiting for content', entries.filter(source => !source.live_fresh && source.mode !== 'DISABLED' && waiting(source))],
-    ['Needs attention', entries.filter(source => !source.live_fresh && source.mode !== 'DISABLED' && !waiting(source))],
+    ['Needs attention (with reasons)', entries.filter(source => !source.live_fresh && source.mode !== 'DISABLED' && !waiting(source))],
     ['Not enabled in this build', entries.filter(source => source.mode === 'DISABLED' || source.reason === 'not_enabled_in_this_build')],
   ];
   return <div className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-sm" role="presentation">

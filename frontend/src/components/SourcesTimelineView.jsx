@@ -30,7 +30,7 @@ export default function SourcesTimelineView({ refreshKey = 0 }) {
   const [to, setTo] = useState('');
   const [syncing, setSyncing] = useState('');
   const [isLiveMode, setIsLiveMode] = useState(true);
-  const [importInfo, setImportInfo] = useState({ dataset: 'Public Sentiment Archive', minDate: null, maxDate: null });
+  const [importInfo, setImportInfo] = useState({ dataset: null, minDate: null, maxDate: null });
   const [integrity, setIntegrity] = useState(null);
   const [integrityLoading, setIntegrityLoading] = useState(false);
 
@@ -66,7 +66,7 @@ export default function SourcesTimelineView({ refreshKey = 0 }) {
       const times = importRows.map(r => new Date(r.time).getTime()).filter(t => !isNaN(t));
       if (times.length > 0) {
         setImportInfo({
-          dataset: 'Public Sentiment & Threat Archive',
+          dataset: importRows.find(row => row.dataset)?.dataset || null,
           minDate: new Date(Math.min(...times)).toLocaleDateString(),
           maxDate: new Date(Math.max(...times)).toLocaleDateString()
         });
@@ -144,7 +144,7 @@ export default function SourcesTimelineView({ refreshKey = 0 }) {
               isLiveMode ? 'pill--live' : 'bg-white/5 text-slate-400 hover:text-white'
             }`}
           >
-            <Radio className={`w-3.5 h-3.5 ${isLiveMode ? 'text-emerald-400 animate-pulse' : 'text-slate-500'}`} />
+            <Radio className={`w-3.5 h-3.5 ${Object.values(sources).some(source => source.live_fresh) ? 'text-emerald-400 animate-pulse' : 'text-slate-500'}`} />
             {isLiveMode ? 'Live Mode Active' : 'Live Mode Paused'}
           </button>
         </div>
@@ -173,23 +173,10 @@ export default function SourcesTimelineView({ refreshKey = 0 }) {
                 {isNotEnabled ? 'Not enabled in this build.' : (source.message || STATUS_HELP[source.status] || STATUS_HELP.ERROR)}
               </p>
 
-              {name === 'x' && !isNotEnabled && (
-                <div className="mt-2.5 pt-2 border-t border-white/10 space-y-1.5 text-[11px]">
-                  <div className="flex items-center justify-between text-slate-300">
-                    <span className="pill text-[9px] pill--import">IMPORT</span>
-                    <span className="font-mono text-[10px] text-slate-300">
-                      {(source.import_datasets || ['public_sentiment_archive']).join(', ')} ({source.import_date_range || 'archive'})
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-slate-300">
-                    <span className="pill text-[9px] pill--live-third-party">LIVE_THIRD_PARTY</span>
-                    <span className="font-mono text-[10px] text-amber-300 font-semibold">
-                      {source.third_party_budget_used || 0} / {source.third_party_budget_limit || 300} used today
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-amber-200/90 italic pt-1 leading-snug">
-                    X data: public datasets plus a capped third-party sample; not the official X API.
-                  </p>
+              {!isNotEnabled && (source.import_datasets?.length || source.third_party_budget_limit != null) && (
+                <div className="mt-2.5 pt-2 border-t border-white/10 space-y-1.5 text-sm">
+                  {source.import_datasets?.length > 0 && <p className="text-slate-300">Imports: {source.import_datasets.join(', ')}{source.import_date_range ? ` (${source.import_date_range})` : ''}</p>}
+                  {source.third_party_budget_limit != null && <p className="text-slate-300">Third-party budget: {source.third_party_budget_used || 0} / {source.third_party_budget_limit}</p>}
                 </div>
               )}
 
@@ -387,7 +374,7 @@ export default function SourcesTimelineView({ refreshKey = 0 }) {
           <div className="flex items-center gap-2">
             <FileText className="w-4 h-4 text-sky-400 shrink-0" />
             <div>
-              <strong>Imported Dataset Notice:</strong> Dataset <em>"{importInfo.dataset}"</em>
+              <strong>Imported records</strong>{importInfo.dataset ? `: ${importInfo.dataset}` : ''}
               {importInfo.minDate && ` (${importInfo.minDate} – ${importInfo.maxDate})`}.
               Historical datasets are presented in their native chronological window and are <strong>never represented as "last 24 hours"</strong>.
             </div>
@@ -396,10 +383,9 @@ export default function SourcesTimelineView({ refreshKey = 0 }) {
         </div>
       )}
 
-      {platform === 'x' && sources.x?.status !== 'Not enabled in this build' && sources.x?.mode !== 'DISABLED' && (
-        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 flex items-center justify-between">
-          <span>⚠️ <strong>Disclosure:</strong> X data: public datasets plus a capped third-party sample; not the official X API.</span>
-          <span className="pill text-[10px] pill--live-third-party">LIVE_THIRD_PARTY</span>
+      {sources[platform]?.message && (
+        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm text-amber-200">
+          {sources[platform].message}
         </div>
       )}
 

@@ -427,7 +427,7 @@ function App() {
                     <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-sm font-mono">
                       {dataPhase === 'loading' && <span className="col-span-2 text-slate-300">Loading source freshness.</span>}
                       {dataPhase === 'error' && <span className="col-span-2 text-amber-200">Source freshness is unavailable until the API responds.</span>}
-                      {dataPhase === 'ready' && ['telegram', 'youtube', 'facebook', 'instagram'].map(p => {
+                      {dataPhase === 'ready' && Object.entries(sourcesStatus).filter(([, src]) => src.mode !== 'DISABLED' && src.reason !== 'not_enabled_in_this_build').map(([p]) => {
                         const src = sourcesStatus[p] || {};
                         const isFresh = src.status === 'LIVE' || (src.last_success && (Date.now() - new Date(src.last_success).getTime()) < 3600000);
                         const label = src.last_success
@@ -440,7 +440,7 @@ function App() {
                           </div>
                         );
                       })}
-                      {dataPhase === 'ready' && !['telegram', 'youtube', 'facebook', 'instagram'].some(p => sourcesStatus[p]?.last_success || sourcesStatus[p]?.status === 'LIVE') && (
+                      {dataPhase === 'ready' && !Object.values(sourcesStatus).some(src => src.mode !== 'DISABLED' && (src.last_success || src.status === 'LIVE')) && (
                         <span className="col-span-2 text-sm text-slate-300">No fresh items reported for the active sources.</span>
                       )}
                     </div>
@@ -455,7 +455,7 @@ function App() {
                           {dataPhase === 'loading' && <span className="text-sm text-slate-300">Loading coverage.</span>}
                           {dataPhase === 'error' && <span className="text-sm text-amber-200">Coverage is unavailable until the API responds.</span>}
                           {dataPhase === 'ready' && Object.keys(sourcesStatus).length === 0 && <span className="text-sm text-slate-300">No source status reported.</span>}
-                          {dataPhase === 'ready' && ['telegram', 'youtube', 'facebook', 'instagram', 'x', 'reddit'].map(p => {
+                          {dataPhase === 'ready' && Object.keys(sourcesStatus).map(p => {
                             const src = sourcesStatus[p] || {};
                             const isNotEnabled = src.status === 'Not enabled in this build' || src.mode === 'DISABLED';
                             const isLive = !isNotEnabled && src.status === 'LIVE';

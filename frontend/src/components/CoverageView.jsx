@@ -15,8 +15,8 @@ export default function CoverageView({ refreshKey = 0 }) {
         <p className="netra-page-subtitle">Platform ingestion capabilities, access scopes, and provider limitations.</p>
       </div>
 
-      <div className="p-3 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-200">
-        💡 <strong>Build Scope:</strong> Active ingestion is restricted to Telegram, YouTube, and Meta (Facebook + Instagram). Bluesky, Mastodon, X, Reddit, and dataset imports are disabled in this build.
+      <div className="p-3 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-sm text-indigo-200">
+        Enabled and disabled sources below come from the coverage API.
       </div>
 
       <div className="glass overflow-x-auto">

@@ -6,15 +6,6 @@ import { Badge, GlassCard, KpiCard, ChartCard, PillTabs } from './ui/primitives'
 
 import { API_URL } from '../config';
 
-const AVAILABLE_NARRATIVES = [
-  "Cyber Attack",
-  "AI Development and Regulation",
-  "Defence and Security",
-  "South China Sea Tensions",
-  "Financial Technology",
-  "Startup Ecosystem"
-];
-
 const SENTIMENT_COLORS = {
   POSITIVE: 'var(--ds-color-green-muted)',
   NEGATIVE: 'var(--ds-color-red-muted)',
@@ -23,12 +14,21 @@ const SENTIMENT_COLORS = {
 };
 
 export default function NarrativeTracker({ refreshKey = 0 }) {
-  const [selectedNarrative, setSelectedNarrative] = useState("Cyber Attack");
+  const [narratives, setNarratives] = useState([]);
+  const [selectedNarrative, setSelectedNarrative] = useState('');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetchMutationData(selectedNarrative);
+    axios.get(`${API_URL}/analytics/narratives`).then(result => {
+      const names = (result.data?.clusters || []).map(row => row.name).filter(Boolean);
+      setNarratives(names);
+      setSelectedNarrative(current => current || names[0] || '');
+    }).catch(() => setNarratives([]));
+  }, [refreshKey]);
+
+  useEffect(() => {
+    if (selectedNarrative) fetchMutationData(selectedNarrative);
   }, [selectedNarrative, refreshKey]);
 
   const fetchMutationData = async (narrative) => {
@@ -57,7 +57,7 @@ export default function NarrativeTracker({ refreshKey = 0 }) {
         {/* Max 3 Filter Pills per row with overflow dropdown */}
         <div className="flex items-center gap-2">
           <PillTabs
-            tabs={AVAILABLE_NARRATIVES}
+            tabs={narratives}
             activeTab={selectedNarrative}
             onChange={(narrative) => setSelectedNarrative(narrative)}
           />
