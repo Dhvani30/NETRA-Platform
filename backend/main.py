@@ -20,9 +20,12 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Response, Request, Header, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+<<<<<<< HEAD
 import networkx as nx
 from neo4j import GraphDatabase
 from neo4j.exceptions import Neo4jError
+=======
+>>>>>>> a8ead338865215b43923c72005cc9123ace1e9bd
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.errors import PyMongoError
@@ -48,6 +51,7 @@ install_secret_redaction()
 # Load environment variables from .env file
 load_dotenv()
 
+<<<<<<< HEAD
 # --- Configuration (Reads securely from .env via clean loader) ---
 MONGO_URI = get_clean_env("MONGO_URI", "mongodb://localhost:27017")
 MONGO_DB_NAME = get_clean_env("DB_NAME", "social_intel")
@@ -55,12 +59,20 @@ MONGO_COLLECTION = get_clean_env("COLLECTION_NAME", "raw_posts")
 NEO4J_URI = get_clean_env("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = get_clean_env("NEO4J_USER", "neo4j")
 NEO4J_PASSWORD = get_clean_env("NEO4J_PASSWORD", "")
+=======
+# --- Configuration (Reads from .env, falls back to safe defaults) ---
+MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://admin:admin123@cluster0.joyab6x.mongodb.net/NETRA?retryWrites=true&w=majority&authSource=admin")
+MONGO_DB_NAME = os.getenv("DB_NAME", "NETRA")
+MONGO_COLLECTION = os.getenv("COLLECTION_NAME", "raw_posts")
+>>>>>>> a8ead338865215b43923c72005cc9123ace1e9bd
 
 # The API must remain usable when local development databases are absent.
 MONGO_TIMEOUT_MS = 750
 mongo_client: MongoClient = MongoClient(MONGO_URI, serverSelectionTimeoutMS=MONGO_TIMEOUT_MS, connectTimeoutMS=MONGO_TIMEOUT_MS, socketTimeoutMS=MONGO_TIMEOUT_MS)
 raw_posts: Collection = mongo_client[MONGO_DB_NAME][MONGO_COLLECTION]
-neo4j_driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+
+# PostgreSQL Graph Database Connection
+from app.graph_db import close_pool, get_connection
 
 app = FastAPI(title="NETRA Intelligence Platform", version="1.0.0")
 app.add_middleware(
@@ -120,26 +132,8 @@ def ensure_schema_indexes() -> None:
 def _mongo_documents_to_json(documents: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return json.loads(json_util.dumps(documents))
 
-def _primary_label(labels: list[str]) -> str:
-    return labels[0] if labels else "Node"
-
-def _graph_node_id(node: Any, labels: list[str]) -> str:
-    props = dict(node)
-    if props.get("id") is not None: return str(props["id"])
-    if props.get("name") is not None: return f"{_primary_label(labels)}:{props['name']}"
-    return str(node.element_id)
-
-def _graph_node_label(node: Any) -> str:
-    props = dict(node)
-    for key in ("name", "snippet", "id"):
-        if props.get(key) is not None: return str(props[key])
-    text = props.get("text")
-    if text:
-        text_str = str(text)
-        return text_str if len(text_str) <= 80 else f"{text_str[:77]}..."
-    return str(node.element_id)
-
 def _fetch_graph_payload() -> dict[str, list[dict[str, str]]]:
+<<<<<<< HEAD
     try:
         nodes_by_id: dict[str, dict[str, str]] = {}
         links: list[dict[str, str]] = []
@@ -191,6 +185,14 @@ def _fetch_graph_payload() -> dict[str, list[dict[str, str]]]:
             links_list.append({"source": topic_node_id, "target": ht_id, "type": "HAS_TAG"})
 
     return {"nodes": list(nodes_dict.values()), "links": links_list}
+=======
+    with get_connection() as connection, connection.cursor() as cursor:
+        cursor.execute("SELECT id, label, node_type FROM graph_nodes ORDER BY id")
+        nodes = [{"id": row[0], "label": row[1], "group": row[2]} for row in cursor.fetchall()]
+        cursor.execute("SELECT source, target, edge_type FROM graph_edges ORDER BY source, target, edge_type")
+        links = [{"source": row[0], "target": row[1], "type": row[2]} for row in cursor.fetchall()]
+    return {"nodes": nodes, "links": links}
+>>>>>>> a8ead338865215b43923c72005cc9123ace1e9bd
 
 @app.get("/health")
 def health():
@@ -198,6 +200,7 @@ def health():
     neo4j_ok = False
     try:
         mongo_client.admin.command("ping")
+<<<<<<< HEAD
         mongo_ok = True
     except Exception as e:
         print(f"Mongo health check failed: {e}")
@@ -650,6 +653,14 @@ def get_sentiment_shifts(threshold: float = Query(.25, ge=.01, le=2.0)):
         return {"threshold": threshold, "shifts": _mongo_documents_to_json(sentiment_shifts(mongo_client[MONGO_DB_NAME], threshold))}
     except PyMongoError as exc:
         raise HTTPException(status_code=500, detail=f"DB Error: {str(exc)}")
+=======
+        with get_connection() as connection, connection.cursor() as cursor: 
+            cursor.execute("SELECT 1")
+    except Exception as e: 
+        print(f"Health check failed: {e}")
+        raise HTTPException(status_code=503, detail="Database unreachable")
+    return {"status": "ok"}
+>>>>>>> a8ead338865215b43923c72005cc9123ace1e9bd
 
 @app.get("/api/v1/messages")
 def get_messages(limit: int = Query(20, ge=1, le=100)):
@@ -1124,8 +1135,9 @@ async def trend_socket(websocket: WebSocket):
 
 @app.get("/api/v1/graph/intelligence")
 def get_advanced_network_intelligence():
-    """Extract advanced graph metrics using safe Cypher with coalesce() for missing properties."""
+    """Return graph degree, bridge, and type-group analytics."""
     try:
+<<<<<<< HEAD
         with neo4j_driver.session() as session:
             # Test connection and get total count
             total_result = session.run("MATCH (n) RETURN count(n) as count").single()
@@ -1465,3 +1477,41 @@ def get_network_cascade(narrative_id: str):
 def shutdown_event():
     neo4j_driver.close()
     mongo_client.close()
+=======
+        with get_connection() as connection, connection.cursor() as cursor:
+            cursor.execute("SELECT COUNT(*) FROM graph_nodes")
+            total_nodes = cursor.fetchone()[0]
+            if total_nodes == 0:
+                return {"influencers": [], "bridges": [], "communities": [], "total_nodes": 0,
+                        "message": "PostgreSQL graph is empty. Run graph_builder.py first."}
+            cursor.execute("""SELECT n.label,n.node_type,d.degree FROM graph_nodes n JOIN (
+                SELECT node_id,COUNT(*) degree FROM (SELECT source node_id FROM graph_edges UNION ALL SELECT target FROM graph_edges) i GROUP BY node_id
+                ) d ON d.node_id=n.id ORDER BY d.degree DESC,n.label LIMIT %s""", (5,))
+            influencers = [{"name": r[0] or "Unknown Node", "type": r[1] or "Entity", "degree": r[2]} for r in cursor.fetchall()]
+            cursor.execute("""WITH neighbor_types AS (
+                SELECT e.source node_id,n.node_type FROM graph_edges e JOIN graph_nodes n ON n.id=e.target
+                UNION ALL SELECT e.target,n.node_type FROM graph_edges e JOIN graph_nodes n ON n.id=e.source
+                ), scores AS (SELECT node_id,COUNT(DISTINCT node_type) bridge_score FROM neighbor_types GROUP BY node_id HAVING COUNT(DISTINCT node_type)>1)
+                SELECT n.label,s.bridge_score FROM scores s JOIN graph_nodes n ON n.id=s.node_id ORDER BY s.bridge_score DESC,n.label LIMIT %s""", (5,))
+            bridges = [{"name": r[0], "bridge_score": r[1]} for r in cursor.fetchall()]
+            if len(bridges) < 3:
+                cursor.execute("""SELECT n.label,n.node_type,COUNT(e.node_id) degree FROM graph_nodes n LEFT JOIN (
+                    SELECT source node_id FROM graph_edges UNION ALL SELECT target FROM graph_edges) e ON e.node_id=n.id
+                    GROUP BY n.id ORDER BY n.node_type,degree DESC,n.label""")
+                seen_names = {item["name"] for item in bridges}; seen_types = set()
+                for name, node_type, degree in cursor.fetchall():
+                    if degree and name not in seen_names and node_type not in seen_types:
+                        bridges.append({"name": name, "bridge_score": degree}); seen_names.add(name); seen_types.add(node_type)
+                    if len(bridges) >= 5: break
+            cursor.execute("SELECT node_type,COUNT(*) size FROM graph_nodes GROUP BY node_type ORDER BY size DESC,node_type")
+            communities = [{"community": r[0] or "Unknown", "size": r[1]} for r in cursor.fetchall()]
+            return {"influencers": influencers, "bridges": bridges, "communities": communities, "total_nodes": total_nodes}
+    except Exception as exc:
+        print(f"PostgreSQL graph intelligence error: {exc}")
+        raise HTTPException(status_code=500, detail=f"Graph intelligence failed: {str(exc)}") from exc
+
+@app.on_event("shutdown")
+def shutdown_event():
+    close_pool()
+    mongo_client.close()
+>>>>>>> a8ead338865215b43923c72005cc9123ace1e9bd

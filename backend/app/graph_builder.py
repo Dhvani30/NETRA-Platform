@@ -1,15 +1,17 @@
+"""Build an idempotent PostgreSQL graph from raw MongoDB posts."""
 import os
 import re
 from pathlib import Path
-from collections import Counter
+import sys
 from dotenv import load_dotenv
 from pymongo import MongoClient
-from neo4j import GraphDatabase
+from psycopg2.extras import Json, execute_values
 
-# --- Configuration ---
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-load_dotenv(dotenv_path=BASE_DIR / ".env")
+# Path resolution
+BASE_DIR = Path(__file__).resolve().parents[2]
+BACKEND_DIR = Path(__file__).resolve().parents[1]
 
+<<<<<<< HEAD
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 DB_NAME = os.getenv("DB_NAME", "social_intel")
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "raw_posts")
@@ -17,15 +19,30 @@ COLLECTION_NAME = os.getenv("COLLECTION_NAME", "raw_posts")
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
+=======
+load_dotenv(dotenv_path=BASE_DIR / '.env')
 
-# --- 1. Dynamic Topic Extractor (Fixes the "General..." issue) ---
+# 🚨 CRITICAL FIX: Ensure backend directory is in sys.path BEFORE importing app modules
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+
+from app.graph_db import get_connection, initialize_pool
+
+MONGO_URI = os.getenv("MONGO_URI") or "mongodb+srv://admin:admin123@cluster0.joyab6x.mongodb.net/NETRA?retryWrites=true&w=majority&authSource=admin"
+DB_NAME = os.getenv("DB_NAME", "NETRA")
+COLLECTION_NAME = os.getenv("COLLECTION_NAME", "raw_posts")
+
+ENTITY_KEYWORDS = {
+    "Organization": ["cisco", "nato", "un", "cert-in", "microsoft", "google", "ntro", "parliament", "defense ministry", "iisc", "isro", "sebi", "rbi", "sbi", "hdfc"],
+    "Location": ["india", "south china sea", "arctic", "bangalore", "mumbai", "delhi", "japan", "us", "usa", "eu", "border", "china", "pakistan", "taiwan", "beijing"],
+}
+>>>>>>> a8ead338865215b43923c72005cc9123ace1e9bd
+
 def get_topic(text, metadata, platform):
-    # 1. Use metadata if available (Reddit subreddits, Telegram chat titles)
-    if metadata.get("subreddit"): return metadata["subreddit"].title()
-    if metadata.get("chat_title"): return metadata["chat_title"].title()
-
-    # 2. Fallback for X/Telegram: Scan text for broad categories
+    if metadata.get("subreddit"): return str(metadata["subreddit"]).title()
+    if metadata.get("chat_title"): return str(metadata["chat_title"]).title()
     text_lower = text.lower()
+<<<<<<< HEAD
     if any(x in text_lower for x in ["cyber", "hack", "breach", "malware", "ransomware", "vulnerability"]):
         return "Cybersecurity"
     if any(x in text_lower for x in ["ai", "artificial intelligence", "machine learning", "deepfake"]):
@@ -38,10 +55,22 @@ def get_topic(text, metadata, platform):
         return "Politics & Governance"
 
     return "Global Intelligence" # Much better than "General..."
+=======
+    for words, topic in [
+        (["cyber", "hack", "breach", "malware", "ransomware", "vulnerability"], "Cybersecurity"),
+        (["ai", "artificial intelligence", "machine learning", "deepfake"], "Artificial Intelligence"),
+        (["china", "border", "navy", "war", "conflict", "geopolitics"], "Geopolitics"),
+        (["defence", "military", "army", "nato", "missile"], "Defence & Military"),
+        (["election", "vote", "parliament", "policy", "government"], "Politics & Governance"),
+        (["bank", "fintech", "rbi", "sebi", "sbi", "hdfc", "economy", "market"], "Financial Technology")
+    ]:
+        if any(word in text_lower for word in words): return topic
+    return "Global Intelligence"
+>>>>>>> a8ead338865215b43923c72005cc9123ace1e9bd
 
-# --- 2. Semantic Narrative Detector (Fixes the duplicate label issue) ---
 def get_narrative(text, topic):
     text_lower = text.lower()
+<<<<<<< HEAD
     # Narratives should be specific events/themes, not broad categories
     if any(x in text_lower for x in ["ransomware", "zero-day", "lockbit"]):
         return "Ransomware & Zero-Day Attacks"
@@ -57,31 +86,96 @@ def get_narrative(text, topic):
         return "Defence Modernization"
 
     # Fallback: Combine topic with a generic discourse tag to avoid exact duplicates
+=======
+    for words, narrative in [
+        (["ransomware", "zero-day", "lockbit"], "Ransomware & Zero-Day Attacks"),
+        (["data breach", "leak", "privacy", "dpdp"], "Data Privacy & Breaches"),
+        (["south china sea", "taiwan", "maritime"], "South China Sea Conflict"),
+        (["border", "territorial", "dispute"], "Border Security Disputes"),
+        (["ai regulation", "misinformation", "deepfake"], "AI Regulation & Deepfakes"),
+        (["defence", "military", "nato"], "Defence Modernization"),
+        (["cyber", "hack", "ransomware", "vulnerability", "cert-in", "zero-day", "malware"], "Cyber Attack"),
+        (["ai", "artificial intelligence", "regulation", "algorithm", "tech policy"], "AI Development and Regulation"),
+        (["defence", "military", "nato", "border", "security", "army", "forces"], "Defence and Security"),
+        (["china", "south china sea", "taiwan", "navy", "beijing", "tensions"], "South China Sea Tensions"),
+        (["bank", "fintech", "rbi", "sebi", "sbi", "hdfc", "economy", "market"], "Financial Technology")
+    ]:
+        if any(word in text_lower for word in words): return narrative
+>>>>>>> a8ead338865215b43923c72005cc9123ace1e9bd
     return f"{topic} Discourse"
-
-# --- 3. Entity Keyword Matcher ---
-ENTITY_KEYWORDS = {
-    "Organization": ["cisco", "nato", "un", "cert-in", "microsoft", "google", "ntro", "parliament", "defense ministry", "iisc", "isro", "sebi", "rbi"],
-    "Location": ["india", "south china sea", "arctic", "bangalore", "mumbai", "delhi", "japan", "us", "usa", "eu", "border", "china", "pakistan", "taiwan"]
-}
 
 def extract_entities(text):
     text_lower = text.lower()
     entities = {"Organization": set(), "Location": set()}
     for entity_type, keywords in ENTITY_KEYWORDS.items():
         for keyword in keywords:
-            if re.search(rf'\b{re.escape(keyword)}\b', text_lower):
-                entities[entity_type].add(keyword.title() if keyword.lower() not in ["us", "uk", "eu"] else keyword.upper())
+            if re.search(rf"\b{re.escape(keyword)}\b", text_lower):
+                entities[entity_type].add(keyword.upper() if keyword.lower() in {"us", "uk", "eu"} else keyword.title())
     return entities
 
+def _upsert_nodes_edges(nodes, edges):
+    with get_connection() as connection, connection.cursor() as cursor:
+        execute_values(cursor, """INSERT INTO graph_nodes (id,label,node_type,properties) VALUES %s
+            ON CONFLICT (id) DO UPDATE SET label=EXCLUDED.label,node_type=EXCLUDED.node_type,properties=EXCLUDED.properties""",
+            [(node_id, label, kind, Json(properties)) for node_id, label, kind, properties in nodes])
+        execute_values(cursor, """INSERT INTO graph_edges (source,target,edge_type) VALUES %s
+            ON CONFLICT (source,target,edge_type) DO NOTHING""", edges)
+
 def build_knowledge_graph():
+<<<<<<< HEAD
     print("[*] Starting NETRA Semantic Knowledge Graph Builder (Massive Mode)...")
 
+=======
+    print("[*] Syncing NETRA semantic graph into PostgreSQL...")
+    mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+>>>>>>> a8ead338865215b43923c72005cc9123ace1e9bd
     try:
-        mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-        mongo_client.admin.command('ping')
+        mongo_client.admin.command("ping")
         collection = mongo_client[DB_NAME][COLLECTION_NAME]
+        
+        # 🚨 CRITICAL FIX: Fetch ALL platforms (including youtube, instagram) instead of just reddit|x|telegram
+        documents = list(collection.find({}).limit(1500))
+        
+        documents = [doc for doc in documents if (doc.get("text_content") or doc.get("content") or "").strip()]
+        if not documents:
+            print("[-] No valid documents found.")
+            return
+        
+        initialize_pool()
+        all_nodes, all_edges = {}, set()
+        
+        for doc in documents:
+            post_id = str(doc.get("canonical_id") or f"{doc.get('platform', 'unk')}_{doc.get('_id')}")
+            platform = str(doc.get("platform") or "UNKNOWN").upper()
+            text = str(doc.get("text_content") or doc.get("content") or "")
+            snippet = text[:50].replace("\n", " ") + ("..." if len(text) > 50 else "")
+            metadata = doc.get("metadata") or {}
+            
+            topic = get_topic(text, metadata, platform)
+            narrative = get_narrative(text, topic)
+            
+            post_node = (post_id, snippet or post_id, "Post", {"text": text[:300], "platform": platform})
+            all_nodes[post_id] = post_node
+            
+            relationships = [("Platform", platform, "POSTED_ON"), ("Topic", topic, "ABOUT"), ("Narrative", narrative, "PART_OF")]
+            
+            author = str(doc.get('author_username') or doc.get('author') or doc.get('author_id', '')).strip()
+            if author and author.lower() not in {'deleted', '[deleted]', 'unknown', 'anon'}:
+                relationships.append(('Author', author, 'AUTHORED'))
+                
+            for entity_type, values in extract_entities(text).items():
+                relationships.extend((entity_type, value, "MENTIONS" if entity_type == "Organization" else "ASSOCIATED_WITH") for value in values)
+            
+            for kind, label, relation in relationships:
+                entity_id = f"{kind}:{label}"
+                all_nodes[entity_id] = (entity_id, label, kind, {})
+                all_edges.add((post_id, entity_id, relation))
+        
+        _upsert_nodes_edges(list(all_nodes.values()), list(all_edges))
+        print(f"[+] Upserted {len(all_nodes)} nodes and {len(all_edges)} edges from {len(documents)} posts.")
+        
     except Exception as e:
+<<<<<<< HEAD
         print(f"[!] CRITICAL: Cannot connect to MongoDB. Error: {e}")
         return
 
@@ -386,6 +480,11 @@ def build_user_edges(db, docs=None):
     driver.close()
     print(f"[+] build_user_edges complete: {total_edges} edges merged ({len(reply_batch)} replies, {len(forward_batch)} forwards, {len(repost_batch)} reposts).")
     return total_edges
+=======
+        print(f"[!] Error building knowledge graph: {e}")
+    finally:
+        mongo_client.close()
+>>>>>>> a8ead338865215b43923c72005cc9123ace1e9bd
 
 if __name__ == "__main__":
     build_knowledge_graph()
