@@ -1,5 +1,4 @@
 """Build an idempotent PostgreSQL graph from raw MongoDB posts."""
-import os
 import re
 from pathlib import Path
 import sys
@@ -17,11 +16,13 @@ load_dotenv(dotenv_path=BASE_DIR / '.env')
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
+from app.core.env_utils import get_clean_env
+
 from app.graph_db import get_connection, initialize_pool
 
-MONGO_URI = os.getenv("MONGO_URI") or "mongodb+srv://admin:admin123@cluster0.joyab6x.mongodb.net/NETRA?retryWrites=true&w=majority&authSource=admin"
-DB_NAME = os.getenv("DB_NAME", "NETRA")
-COLLECTION_NAME = os.getenv("COLLECTION_NAME", "raw_posts")
+MONGO_URI = get_clean_env("MONGO_URI", "mongodb+srv://admin:admin123@cluster0.joyab6x.mongodb.net/NETRA?retryWrites=true&w=majority&authSource=admin")
+DB_NAME = get_clean_env("DB_NAME", "NETRA")
+COLLECTION_NAME = get_clean_env("COLLECTION_NAME", "raw_posts")
 
 ENTITY_KEYWORDS = {
     "Organization": ["cisco", "nato", "un", "cert-in", "microsoft", "google", "ntro", "parliament", "defense ministry", "iisc", "isro", "sebi", "rbi", "sbi", "hdfc"],

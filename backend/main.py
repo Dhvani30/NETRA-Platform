@@ -48,14 +48,12 @@ load_dotenv()
 
 
 def _cors_origins() -> list[str]:
-    """Return explicitly configured browser origins plus local development defaults."""
-    configured = os.getenv("CORS_ALLOWED_ORIGINS", "")
-    origins = [origin.strip().rstrip("/") for origin in configured.split(",") if origin.strip()]
-    return origins or ["http://localhost:5173", "http://127.0.0.1:5173"]
-
-
+    """Return configured browser origins or local and production defaults."""
+    default_origins = "http://localhost:5173,http://127.0.0.1:5173,https://netra-platform.vercel.app"
+    configured = os.getenv("CORS_ALLOWED_ORIGINS") or default_origins
+    return [origin.strip().rstrip("/") for origin in configured.split(",") if origin.strip()]
 # --- Configuration (Reads from .env, falls back to safe defaults) ---
-MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://admin:admin123@cluster0.joyab6x.mongodb.net/NETRA?retryWrites=true&w=majority&authSource=admin")
+MONGO_URI = get_clean_env("MONGO_URI", "mongodb+srv://admin:admin123@cluster0.joyab6x.mongodb.net/NETRA?retryWrites=true&w=majority&authSource=admin")
 MONGO_DB_NAME = os.getenv("DB_NAME", "NETRA")
 MONGO_COLLECTION = os.getenv("COLLECTION_NAME", "raw_posts")
 
@@ -92,7 +90,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 @app.get("/", include_in_schema=False)
 def api_root():
     """Identify this server as the API when it is opened directly in a browser."""
-    return {"service": "NETRA Intelligence API", "docs": "/docs", "dashboard": "http://localhost:5173"}
+    return {"service": "NETRA Intelligence API", "docs": "/docs", "dashboard": os.getenv("FRONTEND_URL", "http://localhost:5173")}
 
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
@@ -127,14 +125,74 @@ def ensure_schema_indexes() -> None:
 def _mongo_documents_to_json(documents: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return json.loads(json_util.dumps(documents))
 
-def _fetch_graph_payload() -> dict[str, list[dict[str, str]]]:
-    with get_connection() as connection, connection.cursor() as cursor:
-        cursor.execute("SELECT id, label, node_type FROM graph_nodes ORDER BY id")
-        nodes = [{"id": row[0], "label": row[1], "group": row[2]} for row in cursor.fetchall()]
-        cursor.execute("SELECT source, target, edge_type FROM graph_edges ORDER BY source, target, edge_type")
-        links = [{"source": row[0], "target": row[1], "type": row[2]} for row in cursor.fetchall()]
-    return {"nodes": nodes, "links": links}
+def _fetch_mongo_graph_payload() -> dict[str, list[dict[str, str]]]:
+    """Build a lightweight graph from MongoDB posts when the stored graph is unavailable."""
+    projection = {
+        "canonical_id": 1, "post_id": 1, "platform": 1, "topic": 1,
+        "narrative_name": 1, "category": 1, "hashtags": 1,
+        "text_content": 1, "content": 1, "metadata": 1,
+    }
+    nodes: dict[str, dict[str, str]] = {}
+    links: set[tuple[str, str, str]] = set()
 
+    for post in raw_posts.find({}, projection).limit(1500):
+        post_id = str(post.get("canonical_id") or post.get("post_id") or post.get("_id"))
+        post_node_id = f"Post:{post_id}"
+        nodes[post_node_id] = {"id": post_node_id, "label": str(post.get("text_content") or post.get("content") or post_id)[:80], "group": "Post"}
+
+        platform = str(post.get("platform") or "UNKNOWN").strip()
+        if platform:
+            platform_id = f"Platform:{platform}"
+            nodes[platform_id] = {"id": platform_id, "label": platform, "group": "Platform"}
+            links.add((post_node_id, platform_id, "POSTED_ON"))
+
+        metadata = post.get("metadata") or {}
+        topic = post.get("topic") or post.get("narrative_name") or post.get("category") or metadata.get("subreddit") or metadata.get("chat_title")
+        if topic:
+            topic = str(topic).strip()
+            if topic:
+                topic_id = f"Topic:{topic}"
+                nodes[topic_id] = {"id": topic_id, "label": topic, "group": "Topic"}
+                links.add((post_node_id, topic_id, "ABOUT"))
+
+        hashtags = post.get("hashtags") or []
+        if isinstance(hashtags, str):
+            hashtags = [hashtags]
+        for hashtag in hashtags:
+            if isinstance(hashtag, dict):
+                hashtag = hashtag.get("text") or hashtag.get("tag") or hashtag.get("name")
+            if not hashtag:
+                continue
+            hashtag = str(hashtag).strip().lstrip("#")
+            if not hashtag:
+                continue
+            hashtag_id = f"Hashtag:{hashtag.lower()}"
+            nodes[hashtag_id] = {"id": hashtag_id, "label": f"#{hashtag}", "group": "Hashtag"}
+            links.add((post_node_id, hashtag_id, "HAS_TAG"))
+
+    return {
+        "nodes": list(nodes.values()),
+        "links": [{"source": source, "target": target, "type": edge_type}
+                  for source, target, edge_type in sorted(links)],
+    }
+
+def _fetch_graph_payload() -> dict[str, list[dict[str, str]]]:
+    try:
+        with get_connection() as connection, connection.cursor() as cursor:
+            cursor.execute("SELECT id, label, node_type FROM graph_nodes ORDER BY id")
+            nodes = [{"id": row[0], "label": row[1], "group": row[2]} for row in cursor.fetchall()]
+            if nodes:
+                cursor.execute("SELECT source, target, edge_type FROM graph_edges ORDER BY source, target, edge_type")
+                links = [{"source": row[0], "target": row[1], "type": row[2]} for row in cursor.fetchall()]
+                return {"nodes": nodes, "links": links}
+            logging.getLogger("NETRA.API").warning("PostgreSQL graph is empty; building graph payload from MongoDB posts")
+    except Exception as exc:
+        logging.getLogger("NETRA.API").warning(
+            "PostgreSQL graph read failed; building graph payload from MongoDB posts: %s",
+            mask_secrets(str(exc)),
+        )
+
+    return _fetch_mongo_graph_payload()
 @app.get("/health")
 def health():
     mongo_ok = False

@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from pymongo import MongoClient
 from dotenv import load_dotenv
+from app.core.env_utils import get_clean_env
 
 APP_DIR = Path(__file__).resolve().parent
 BACKEND_DIR = APP_DIR.parent
@@ -21,13 +22,13 @@ load_dotenv(dotenv_path=ROOT_DIR / ".env")
 
 # --- Configuration (Read from Environment Variables) ---
 # NOTE: Ensure your .env points to your MongoDB Atlas cluster where your private scraper writes data.
-MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://admin:admin123@cluster0.joyab6x.mongodb.net/NETRA?retryWrites=true&w=majority&authSource=admin")
+MONGO_URI = get_clean_env("MONGO_URI", "mongodb+srv://admin:admin123@cluster0.joyab6x.mongodb.net/NETRA?retryWrites=true&w=majority&authSource=admin")
 DB_NAME = os.getenv("DB_NAME", "NETRA")
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "raw_posts")
 
-NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password123")
+NEO4J_URI = get_clean_env("NEO4J_URI", "")
+NEO4J_USER = get_clean_env("NEO4J_USER", "")
+NEO4J_PASSWORD = get_clean_env("NEO4J_PASSWORD", "")
 
 def run_command(script_name):
     print(f"\n[*] Running {script_name}...")
@@ -68,7 +69,10 @@ def main():
     print(f" MongoDB URI: {MONGO_URI[:45]}... (Atlas Cloud)")
     print(f" Database: {DB_NAME}")
     print(f" Collection: {COLLECTION_NAME}")
-    print(f" Neo4j URI: {NEO4J_URI}")
+    if NEO4J_URI:
+        print(" Neo4j is configured; graph building uses the PostgreSQL graph store.")
+    else:
+        print(" Neo4j is not configured; graph building will use the PostgreSQL graph store.")
     print("="*60)
     
     # 1. Check for real data from external scraper
@@ -81,10 +85,10 @@ def main():
         print("\n[ℹ️] Running analytic_engine.py to ensure sentiment/narratives are processed...")
         run_command("analytic_engine.py")
         
-    # 3. Build/Update Neo4j Graph (CRUCIAL)
+    # 3. Build/update the PostgreSQL graph
     # This reads the real MongoDB data and builds the Network Graph for the dashboard.
     if os.path.exists("graph_builder.py"):
-        print("\n[ℹ️] Syncing MongoDB data to Neo4j Graph Database...")
+        print("\n[ℹ️] Syncing MongoDB data to PostgreSQL Graph Database...")
         run_command("graph_builder.py")
         
     print("\n" + "="*60)

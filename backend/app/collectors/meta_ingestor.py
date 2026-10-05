@@ -14,7 +14,7 @@ from app.core.live_events import publish_documents
 
 ROOT = Path(__file__).resolve().parents[3]; load_dotenv(ROOT / ".env")
 IMPORT_DIR = ROOT / "data" / "import" / "meta"
-MONGO_URI=get_clean_env("MONGO_URI","mongodb://localhost:27017"); DB_NAME=get_clean_env("DB_NAME","social_intel")
+MONGO_URI=get_clean_env("MONGO_URI","mongodb+srv://admin:admin123@cluster0.joyab6x.mongodb.net/NETRA?retryWrites=true&w=majority&authSource=admin"); DB_NAME=get_clean_env("DB_NAME","social_intel")
 logger=logging.getLogger("NETRA.Meta")
 class MetaRedactionFilter(logging.Filter):
     """Remove secret query values and token-looking fragments from every Meta log."""

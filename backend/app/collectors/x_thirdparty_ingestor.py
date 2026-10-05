@@ -54,7 +54,7 @@ def _budget(db):
     key="x_thirdparty_budget"; day=datetime.now(timezone.utc).date().isoformat(); doc=db.collector_state.find_one({"_id":key}) or {}
     return (int(doc.get("used",0)) if doc.get("day")==day else 0),day,key
 def ingest_x_thirdparty(target_db=None,client=None):
-    db=target_db if target_db is not None else MongoClient(get_clean_env("MONGO_URI","mongodb://localhost:27017"))[get_clean_env("DB_NAME","social_intel")]; key=get_clean_env("TWITTERAPI_IO_KEY")
+    db=target_db if target_db is not None else MongoClient(get_clean_env("MONGO_URI","mongodb+srv://admin:admin123@cluster0.joyab6x.mongodb.net/NETRA?retryWrites=true&w=majority&authSource=admin"))[get_clean_env("DB_NAME","social_intel")]; key=get_clean_env("TWITTERAPI_IO_KEY")
     if not is_source_enabled("x") and client is None:
         set_connector_status(db, "x", "DISABLED", mode="DISABLED", message="Not enabled in this build.", reason="not_enabled_in_this_build")
         return {"count": 0, "status": "DISABLED", "reason": "not_enabled_in_this_build", "message": "Not enabled in this build."}

@@ -17,7 +17,7 @@ ENV_FILE = BASE_DIR / ".env"
 load_dotenv(dotenv_path=ENV_FILE)
 
 # --- Configuration (STRICT: No hardcoded URLs) ---
-MONGO_URI = get_clean_env("MONGO_URI", "mongodb://localhost:27017")
+MONGO_URI = get_clean_env("MONGO_URI", "mongodb+srv://admin:admin123@cluster0.joyab6x.mongodb.net/NETRA?retryWrites=true&w=majority&authSource=admin")
 DB_NAME = get_clean_env("DB_NAME", "social_intel")
 COLLECTION_NAME = get_clean_env("COLLECTION_NAME", "raw_posts")
 REPLAY_FILE = BASE_DIR / "data" / "raw" / "reddit_replay.jsonl"

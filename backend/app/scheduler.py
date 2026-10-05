@@ -12,7 +12,7 @@ from app.core.env_utils import get_clean_env, is_source_enabled
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(dotenv_path=BASE_DIR / ".env")
 
-MONGO_URI = get_clean_env("MONGO_URI", "mongodb://localhost:27017")
+MONGO_URI = get_clean_env("MONGO_URI", "mongodb+srv://admin:admin123@cluster0.joyab6x.mongodb.net/NETRA?retryWrites=true&w=majority&authSource=admin")
 DB_NAME = get_clean_env("DB_NAME", "social_intel")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
