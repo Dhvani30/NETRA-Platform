@@ -49,7 +49,7 @@ load_dotenv()
 
 def _cors_origins() -> list[str]:
     """Return configured browser origins or local and production defaults."""
-    configured = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,https://netra-platform.vercel.app")
+    configured = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,https://netra-platform.vercel.app/")
 
     return [origin.strip().rstrip("/") for origin in configured.split(",") if origin.strip()]
 # --- Configuration (Reads from .env, falls back to safe defaults) ---
