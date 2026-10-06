@@ -31,6 +31,7 @@ import CoverageView from './components/CoverageView';
 import { Button, ChartCard, DataTable, Input, StatusBadge } from './components/ui/primitives';
 import { BackendConnectivityProvider, EmptyState, ErrorState, ScreenSkeleton, Skeleton } from './components/ui/dataState';
 import { API_UNREACHABLE, API_URL } from './config';
+import { isApiResponse } from './lib/apiHealth';
 
 const SCREEN_PATHS = {
   live_feed: '/dashboard/live',
@@ -194,12 +195,15 @@ function App() {
         axios.get(`${API_URL}/analytics/sentiment`, { params: sourceFilter }),
         axios.get(`${API_URL}/analytics/narratives`, { params: sourceFilter }),
         axios.get(`${API_URL}/graph/data`, { params: sourceFilter }).then(
-          (result) => ({ ok: true, data: result.data }),
+          (result) => ({ ok: isApiResponse(result), data: result.data }),
           () => ({ ok: false })
         ),
         axios.get(`${API_URL}/health/sources`).catch(() => ({ data: {} })),
         axios.get(`${API_URL}/live/summary`).catch(() => ({ data: null }))
       ]);
+      if (![summaryRes, timeseriesRes, originRes, sentimentRes, narrativeRes].every(isApiResponse)) {
+        throw new Error("FastAPI returned a non-JSON response");
+      }
       setSummaryData(summaryRes.data);
       setTimeseriesData(timeseriesRes.data.timeseries || []);
       setDataOrigin(originRes.data);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { API_URL } from '../config';
+import { isApiResponse } from '../lib/apiHealth';
 import { MODE_LEGEND } from '../lib/sourceModes';
 import { LastUpdated } from './ui/dataState';
 import { StatusBadge } from './ui/primitives';
@@ -61,7 +62,7 @@ export default function LiveStatusStrip({ summary, streamState = 'reconnecting',
   useEffect(() => {
     let cancelled = false;
     axios.get(`${API_URL}/health/sources`)
-      .then(result => { if (!cancelled) { setHealth(result.data || {}); setHealthError(false); setUpdatedAt(new Date()); } })
+      .then(result => { if (!isApiResponse(result)) throw new Error("FastAPI returned a non-JSON response"); if (!cancelled) { setHealth(result.data || {}); setHealthError(false); setUpdatedAt(new Date()); } })
       .catch(() => { if (!cancelled) setHealthError(true); });
     return () => { cancelled = true; };
   }, []);
