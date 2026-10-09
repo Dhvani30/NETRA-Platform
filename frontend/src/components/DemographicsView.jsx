@@ -3,9 +3,9 @@ import axios from 'axios';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 import { Users, Globe, Briefcase, Languages, ShieldCheck, RefreshCw } from 'lucide-react';
 import { Badge, Button, Card } from './ui/primitives';
+import { API_URL } from '../config';
 import './DemographicsView.css';
 
-const API_URL = 'http://localhost:8000/api/v1';
 
 const COLORS = ['var(--ds-color-accent)', 'var(--ds-color-accent-dim)', 'var(--ds-color-chart-muted-1)', 'var(--ds-color-chart-muted-2)', 'var(--ds-color-chart-muted-3)', 'var(--ds-color-chart-muted-4)', 'var(--ds-color-blue-muted)'];
 

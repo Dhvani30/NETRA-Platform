@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { AlertTriangle, TrendingUp, Globe, Bell, BellOff, RefreshCw, Video } from 'lucide-react';
 import { Badge, Button, Card } from './ui/primitives';
+import { API_URL } from '../config';
 import './AlertsView.css';
 
-const API_URL = 'http://localhost:8000/api/v1';
 
 const SEVERITY_STYLES = {
   CRITICAL: { tone: 'danger', icon: <AlertTriangle className="w-5 h-5" /> },
