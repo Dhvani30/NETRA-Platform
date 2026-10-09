@@ -3,9 +3,9 @@ import axios from 'axios';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Network, Users, GitMerge, Layers, RefreshCw, Share2, MessageSquare, Globe, Video } from 'lucide-react';
 import { Badge, Button, Card } from './ui/primitives';
+import { API_URL } from '../config';
 import './NetworkIntelligenceView.css';
 
-const API_URL = 'http://localhost:8000/api/v1';
 const COLORS = ['var(--ds-color-accent)', 'var(--ds-color-accent-dim)', 'var(--ds-color-chart-muted-1)', 'var(--ds-color-chart-muted-2)', 'var(--ds-color-chart-muted-3)', 'var(--ds-color-chart-muted-4)', 'var(--ds-color-blue-muted)'];
 
 // ✅ ADDED: Helper to show platform icons in the intelligence lists

@@ -10,9 +10,9 @@ import AlertsView from './components/AlertsView';
 import DemographicsView from './components/DemographicsView';
 import NetworkIntelligenceView from './components/NetworkIntelligenceView';
 import { Badge, Button, Card, Input } from './components/ui/primitives';
+import { API_URL } from './config';
 import './components/AnalyticsView.css';
 
-const API_URL = 'http://localhost:8000/api/v1';
 const SENTIMENT_COLORS = { Positive: 'var(--ds-color-green-muted)', Negative: 'var(--ds-color-red-muted)', Neutral: 'var(--ds-color-amber-muted)', ABSTAIN: 'var(--ds-color-text-3)' };
 
 function App() {

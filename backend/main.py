@@ -12,6 +12,8 @@ from bson import json_util
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.errors import PyMongoError
@@ -33,6 +35,12 @@ from app.graph_db import close_pool, get_connection
 
 app = FastAPI(title="NETRA Intelligence Platform", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(static_dir):
+    assets_dir = os.path.join(static_dir, "assets")
+    if os.path.exists(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
 def _mongo_documents_to_json(documents: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return json.loads(json_util.dumps(documents))
@@ -414,3 +422,14 @@ def get_advanced_network_intelligence():
 def shutdown_event():
     close_pool()
     mongo_client.close()
+@app.get("/{full_path:path}")
+async def serve_react_app(full_path: str):
+    file_path = os.path.join(static_dir, full_path)
+    if os.path.isfile(file_path):
+        return FileResponse(file_path)
+
+    index_path = os.path.join(static_dir, "index.html")
+    if os.path.isfile(index_path):
+        return FileResponse(index_path)
+
+    return {"error": "Frontend not found"}

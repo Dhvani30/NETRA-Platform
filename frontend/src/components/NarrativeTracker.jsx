@@ -3,9 +3,9 @@ import axios from 'axios';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { Activity, AlertTriangle, TrendingUp, Clock } from 'lucide-react';
 import { Badge, Card } from './ui/primitives';
+import { API_URL } from '../config';
 import './NarrativeTracker.css';
 
-const API_URL = 'http://localhost:8000/api/v1';
 
 // Pre-defined narratives to track (matches your database)
 const AVAILABLE_NARRATIVES = [

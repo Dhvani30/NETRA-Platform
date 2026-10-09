@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Share2, MessageSquare, Globe, Activity, Video } from 'lucide-react';
 import { Badge, Button, Card, Input } from './ui/primitives';
+import { API_URL } from '../config';
 import './CrossPlatformView.css';
 
-const API_URL = 'http://localhost:8000/api/v1';
 
 const PLATFORM_ICONS = {
   X: <Share2 className="w-5 h-5" />,
